@@ -58,12 +58,12 @@ def test_single_process_trial():
 
 
 def test_process_web():
-    """Test a very basic single-process trial config"""
+    """Test a multi-process web config"""
     config = {
         "structure": {
-            "add_foobar": ["inputs.1"],
-            "add_foo": ["add_foobar.0"],
             "add": ["add_foobar.1", "add_foo"],
+            "add_foo": ["add_foobar.0"],
+            "add_foobar": ["inputs.1"],
         },
     }
     # Run the trial
@@ -76,3 +76,30 @@ def test_process_web():
         "input_1_foo_foo",
         "input_1_bar_input_1_foo_foo",
     ]
+
+
+def test_set_params():
+    """Test passing parameters to some processes"""
+    config = {
+        "structure": {
+            "add_custom": ["inputs.0"],
+        },
+        "parameters": {
+            "custom": "test",
+        },
+    }
+
+    # Run the trial
+    trial = Trial(MockExperiment(), config)
+    trial.run()
+
+    assert trial.get_data(["add_custom"]) == ["input_0_test"]
+
+
+# def test_overwrite_methods():
+#     """Test overwriting the method in a function web"""
+#     pass
+
+# def test_multiple_process_data_usage():
+#     """Test that multiple processes can share data in an experiment"""
+#     pass

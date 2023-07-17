@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import inspect
 import networkx as nx
 from yaht.processes import get_process
 
@@ -13,14 +14,14 @@ class Trial:
         self.proc_functions = {p: get_process(p) for p in structure}
         self.proc_names = self.get_organized_proc_names(structure)
         self.proc_hashes = {p: p for p in structure}
-        # self.proc_params = self.get_proc_params
+        self.proc_params = {p: self.get_proc_params(p, params) for p in structure}
 
     def run(self):
         """Run the trial"""
         for proc in self.proc_names:
             input_data = self.get_data(self.proc_dependencies[proc])
-            # params =
-            output_data = self.proc_functions[proc](*input_data)
+            params = self.proc_params[proc]
+            output_data = self.proc_functions[proc](*input_data, **params)
             self.set_data(proc, output_data)
 
     def set_data(self, proc, data):
@@ -50,6 +51,19 @@ class Trial:
             data.append(data_for_src)
 
         return data
+
+    def get_proc_params(self, proc_name, all_params):
+        """Return a dictionary of the parameters relevant to the given process"""
+        proc_function = self.proc_functions[proc_name]
+        proc_params = [
+            param
+            for param in inspect.signature(proc_function).parameters
+            if param is not inspect.Parameter.empty
+        ]
+        # TODO: This doesn't account for setting params like "f1.p2 = x", etc
+        relevant_params = {p: all_params[p] for p in proc_params if p in all_params}
+
+        return relevant_params
 
     def get_organized_proc_names(self, structure):
         """Organize processes and their dependencies with networkx"""
