@@ -5,11 +5,24 @@ from yaht.trial import Trial
 
 # Example function creation which adds the function name to the passed string
 # to easily show which functions ran on which inputs in which order
-def new_mock_processes(names):
-    for name in names:
-        proc = lambda input_string: "%s_%s" % (input_string, name)
-        proc.__name__ = name
-        register_process(proc)
+@register_process
+def add_foo(x):
+    return "%s_foo" % x
+
+
+@register_process
+def add_foobar(x):
+    return "%s_foo" % x, "%s_bar" % x
+
+
+@register_process
+def add_custom(x, custom="custom"):
+    return "%s_%s" % (x, custom)
+
+
+@register_process
+def add(x, y):
+    return "%s_%s" % (x, y)
 
 
 # Simplified version of the Experiment class
@@ -32,16 +45,34 @@ def test_single_process_trial():
     """Test a very basic single-process trial config"""
     config = {
         "structure": {
-            "f1": ["inputs.0"],
+            "add_foo": ["inputs.0"],
         },
     }
-    # Setup mocks
-    new_mock_processes(["f1"])
-    exp = MockExperiment()
 
     # Run the trial
-    trial = Trial(exp, config)
+    trial = Trial(MockExperiment(), config)
     trial.run()
 
     # Assert the right external functions were called with the right values
-    assert trial.get_data(["f1"]) == ["input_0_f1"]
+    assert trial.get_data(["add_foo"]) == ["input_0_foo"]
+
+
+def test_process_web():
+    """Test a very basic single-process trial config"""
+    config = {
+        "structure": {
+            "add_foobar": ["inputs.1"],
+            "add_foo": ["add_foobar.0"],
+            "add": ["add_foobar.1", "add_foo"],
+        },
+    }
+    # Run the trial
+    trial = Trial(MockExperiment(), config)
+    trial.run()
+
+    # Assert the right external functions were called with the right values
+    assert trial.get_data(["add_foobar", "add_foo", "add"]) == [
+        ("input_1_foo", "input_1_bar"),
+        "input_1_foo_foo",
+        "input_1_bar_input_1_foo_foo",
+    ]

@@ -44,7 +44,7 @@ class Trial:
             # May need to subindex the retrieved data
             if len(src.split(".")) > 1:
                 subindex = int(src.split(".")[1])
-                data_for_dep = data_for_src[subindex]
+                data_for_src = data_for_src[subindex]
             data.append(data_for_src)
 
         return data
