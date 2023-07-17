@@ -5,8 +5,6 @@ from yaht.processes import get_process
 class Trial:
     def __init__(self, parent_experiment, config):
         self.parent_experiment = parent_experiment
-        self.input_deps = config["inputs"]
-        self.output_deps = config["outputs"]
 
         structure = config["structure"]
         # params =
@@ -50,7 +48,3 @@ class Trial:
             data.append(data_for_src)
 
         return data
-
-    def get_output(self):
-        """Wrapper for the get_data() method using self.output_deps"""
-        return self.get_data(self.output_deps)
