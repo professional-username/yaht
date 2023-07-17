@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import networkx as nx
 from yaht.processes import get_process
 
 
@@ -7,11 +8,12 @@ class Trial:
         self.parent_experiment = parent_experiment
 
         structure = config["structure"]
-        # params =
+        params = config["parameters"] if "parameters" in config else {}
         self.proc_dependencies = structure
         self.proc_functions = {p: get_process(p) for p in structure}
-        self.proc_names = [p for p in structure]
+        self.proc_names = self.get_organized_proc_names(structure)
         self.proc_hashes = {p: p for p in structure}
+        # self.proc_params = self.get_proc_params
 
     def run(self):
         """Run the trial"""
@@ -48,3 +50,19 @@ class Trial:
             data.append(data_for_src)
 
         return data
+
+    def get_organized_proc_names(self, structure):
+        """Organize processes and their dependencies with networkx"""
+        proc_graph = nx.DiGraph()
+        for proc, deps in structure.items():
+            deps = [d.split(".")[0] for d in deps]  # Split off "sub-dependencies"
+            for d in deps:
+                proc_graph.add_edge(proc, d)
+        # Use a topological sort to figure out the order procs must be run in
+        sorted_procs = list(nx.topological_sort(proc_graph))
+        sorted_procs.reverse()
+        # Remove the "inputs" node, as it is not a process
+        if "inputs" in sorted_procs:
+            sorted_procs.remove("inputs")
+
+        return sorted_procs
