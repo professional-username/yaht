@@ -20,6 +20,12 @@ class Trial:
     def run(self):
         """Run the trial"""
         for proc in self.proc_names:
+            # Don't run the process if its output already exists in the parent experiment
+            proc_hash = self.proc_hashes[proc]
+            data_exists = self.parent_experiment.check_data(proc_hash)
+            if data_exists:
+                continue
+
             input_data = self.get_data(self.proc_dependencies[proc])
             params = self.proc_params[proc]
             output_data = self.proc_functions[proc](*input_data, **params)
@@ -28,7 +34,6 @@ class Trial:
     def set_data(self, proc, data):
         """Make calls to the parent experiment with the right keys"""
         data_hash = self.proc_hashes[proc]
-        print(data_hash)
         self.parent_experiment.set_data(data_hash, data)
 
     def get_data(self, sources):
