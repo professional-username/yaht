@@ -100,9 +100,20 @@ def test_set_params():
     assert trial.get_data(["add_custom"]) == ["input_0_test"]
 
 
-# def test_overwrite_methods():
-#     """Test overwriting the method in a function web"""
-#     pass
+def test_overwrite_methods():
+    """Test overwriting the method in a function web"""
+    config = {
+        "structure": {
+            "f1 <- add_foo": ["inputs.0"],
+            "f2 <- add_foo": ["f1"],
+        },
+    }
+
+    # The processes should be labelled as "f1" and "f2, but run the functions add_foo"
+    trial = Trial(MockExperiment(), config)
+    trial.run()
+
+    assert trial.get_data(["f2"]) == ["input_0_foo_foo"]
 
 
 def test_multiple_process_data_usage():
