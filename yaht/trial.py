@@ -122,8 +122,14 @@ class Trial:
             for param in inspect.signature(proc_function).parameters
             if param is not inspect.Parameter.empty
         ]
-        # TODO: This doesn't account for setting params like "f1.p2 = x", etc
+        # Read the params from all_params that apply to the given proc
         relevant_params = {p: all_params[p] for p in proc_params if p in all_params}
+        override_params = {
+            p: all_params["%s.%s" % (proc_name, p)]
+            for p in proc_params
+            if "%s.%s" % (proc_name, p) in all_params
+        }
+        relevant_params |= override_params
 
         return relevant_params
 
