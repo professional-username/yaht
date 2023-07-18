@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import inspect
 import networkx as nx
+from hashlib import sha256
 from yaht.processes import get_process
 
 
@@ -13,8 +14,8 @@ class Trial:
         self.proc_dependencies = structure
         self.proc_functions = {p: get_process(p) for p in structure}
         self.proc_names = self.get_organized_proc_names(structure)
-        self.proc_hashes = {p: p for p in structure}
         self.proc_params = {p: self.get_proc_params(p, params) for p in structure}
+        self.proc_hashes = self.get_proc_hashes(self.proc_names)
 
     def run(self):
         """Run the trial"""
@@ -26,7 +27,8 @@ class Trial:
 
     def set_data(self, proc, data):
         """Make calls to the parent experiment with the right keys"""
-        data_hash = proc
+        data_hash = self.proc_hashes[proc]
+        print(data_hash)
         self.parent_experiment.set_data(data_hash, data)
 
     def get_data(self, sources):
@@ -51,6 +53,37 @@ class Trial:
             data.append(data_for_src)
 
         return data
+
+    def get_proc_hashes(self, proc_names):
+        """
+        Generate a unique hash for each process
+        based on a its name, parameters and dependencies
+        """
+        proc_hashes = {}
+
+        # Must iterate over the procs in order so dependencies are hashed first
+        for proc in proc_names:
+            # Hash each proc and its dependencies
+            proc_hash = sha256(proc.encode())
+            # Add parameter hashes
+            for param_item in self.proc_params[proc].items():
+                proc_hash.update(str(param_item).encode())
+            # Add dependency hashes
+            for dep in self.proc_dependencies[proc]:
+                split_dep = dep.split(".")
+                # The dep value is either either the dep hash of the hasehd input in the case of input
+                if split_dep[0] == "inputs":
+                    # NOTE: This may be too slow with large inputs,
+                    # should experiment have an input_hash method?
+                    dep_value = self.parent_experiment.get_input(split_dep[1])
+                else:
+                    dep_value = proc_hashes[split_dep[0]]
+                # Hash the dep and update the proc hash
+                dep_hash = str(dep_value).encode()
+                proc_hash.update(dep_hash)
+            proc_hashes[proc] = proc_hash.hexdigest()
+
+        return proc_hashes
 
     def get_proc_params(self, proc_name, all_params):
         """Return a dictionary of the parameters relevant to the given process"""
