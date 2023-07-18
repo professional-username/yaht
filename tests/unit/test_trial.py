@@ -41,6 +41,9 @@ class MockExperiment:
     def set_data(self, key, value):
         self.data[key] = value
 
+    def check_data(self, key):
+        return key in self.data
+
 
 def test_single_process_trial():
     """Test a very basic single-process trial config"""
@@ -130,6 +133,16 @@ def test_multiple_process_data_usage():
     assert len(parent_exp.data) == 3
 
 
-# def test_only_run_needed_processes():
-#     """Test that if data exists for the output of a process, it isn't run"""
-#     pass
+def test_only_run_needed_processes():
+    """Test that if data exists for the output of a process, it isn't run"""
+    config = {"structure": {"add_foo": ["inputs.0"]}}
+
+    # Run the trial once, change the data, run again to check the data isn't changed
+    exp = MockExperiment()
+    trial = Trial(exp, config)
+    trial.run()
+    k = list(exp.data.keys())[0]
+    exp.data[k] = "fake_data"
+    trial.run()
+
+    assert exp.data[k] == "fake_data"
