@@ -178,9 +178,25 @@ def test_setting_specific_process_parameters():
     assert trial.get_data(["add_custom"]) == ["input_0_CORRECT"]
 
 
-# def test_setting_methods_as_parameters():
-#     """Test replacing structural components with parameters"""
-#     pass
+def test_setting_methods_as_parameters():
+    """Test replacing structural components with parameters"""
+    config = {
+        "structure": {
+            "f1": ["inputs.0"],
+            "add_foo": ["fake_input"],
+        },
+        "parameters": {
+            "f1 <- add_foo": ["inputs.0"],
+            "add_foo <- add_foo": ["f1"],
+        },
+    }
+
+    # Overriding the processes as shown should run foo twice on input.0
+    trial = Trial(MockExperiment(), config)
+    trial.run()
+
+    assert trial.get_data(["add_foo"]) == ["input_0_foo_foo"]
+
 
 # def test_conditional_structures():
 #     """Test only running parts of a structure under certain conditions"""
