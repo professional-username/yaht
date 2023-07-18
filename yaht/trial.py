@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import inspect
+import itertools
 import networkx as nx
 from hashlib import sha256
 from yaht.processes import get_process
@@ -9,13 +10,16 @@ class Trial:
     def __init__(self, parent_experiment, config):
         self.parent_experiment = parent_experiment
 
-        # Get the function for each process
-        self.proc_functions = self.get_proc_functions(config["structure"])
-        # Convert the config to a simpler dependency structure
-        self.proc_dependencies = self.get_proc_dependencies(config["structure"])
-        self.proc_names = self.get_organized_proc_names(self.proc_dependencies)
-        # Extract the parameters relevant to each process
         params = config["parameters"] if "parameters" in config else {}
+        # Override processes if given in functions
+        structure = self.override_structure(config["structure"], params)
+
+        # Convert the config to a simpler dependency structure
+        self.proc_dependencies = self.get_proc_dependencies(structure)
+        self.proc_names = self.get_organized_proc_names(self.proc_dependencies)
+        # Get the function for each process
+        self.proc_functions = self.get_proc_functions(structure)
+        # Extract the parameters relevant to each process
         self.proc_params = {p: self.get_proc_params(p, params) for p in self.proc_names}
         # Hash each process based on its params and dependencies
         self.proc_hashes = self.get_proc_hashes(self.proc_names)
@@ -148,3 +152,25 @@ class Trial:
             sorted_procs.remove("inputs")
 
         return sorted_procs
+
+    def override_structure(self, structure, params):
+        """Override any parts of the structure that are specified by parameters"""
+        override_procs = {
+            p.split("<-")[0].strip(): [p, params[p]] for p in params if "<-" in p
+        }
+        overriden_procs = []
+        for proc_name, override_proc in itertools.product(
+            structure.keys(), override_procs.keys()
+        ):
+            if proc_name.startswith(override_proc):
+                overriden_procs.append(proc_name)
+                proc_name = override_procs[override_proc][0]
+                proc_deps = override_procs[override_proc][1]
+                structure[proc_name] = proc_deps
+
+        # Delete the procs that were overriden from the original structure
+        for p in overriden_procs:
+            print(p)
+            del structure[p]
+
+        return structure
