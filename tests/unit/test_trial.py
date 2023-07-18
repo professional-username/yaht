@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from copy import deepcopy
 from yaht.processes import register_process
 from yaht.trial import Trial
 
@@ -100,6 +101,35 @@ def test_set_params():
 #     """Test overwriting the method in a function web"""
 #     pass
 
-# def test_multiple_process_data_usage():
-#     """Test that multiple processes can share data in an experiment"""
+
+def test_multiple_process_data_usage():
+    """Test that multiple processes can share data in an experiment"""
+    base_config = {
+        "structure": {
+            "add_foo": ["inputs.0"],
+            "add_custom": ["add_foo"],
+        },
+        "parameters": {
+            "custom": "base",
+        },
+    }
+    # Two configs, with a different parameter for the second function in each
+    config_1 = deepcopy(base_config)
+    config_1["parameters"]["custom"] = "test_1"
+    config_2 = deepcopy(base_config)
+    config_2["parameters"]["custom"] = "test_2"
+
+    # Run each trial with the same parent experiment
+    parent_exp = MockExperiment()
+    trial1 = Trial(parent_exp, config_1)
+    trial2 = Trial(parent_exp, config_2)
+    trial1.run()
+    trial2.run()
+
+    # There should be only a single result for add_foo, but 2 for add_custom
+    assert len(parent_exp.data) == 3
+
+
+# def test_only_run_needed_processes():
+#     """Test that if data exists for the output of a process, it isn't run"""
 #     pass
