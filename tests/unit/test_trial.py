@@ -157,3 +157,31 @@ def test_only_run_needed_processes():
     trial.run()
 
     assert exp.data[k] == "fake_data"
+
+
+def test_setting_specific_process_parameters():
+    """Test setting parameters for only specific processes"""
+    config = {
+        "structure": {
+            "add_custom": ["inputs.0"],
+        },
+        "parameters": {
+            "custom": "WRONG",
+            "add_custom.custom": "CORRECT",
+        },
+    }
+
+    # The specific parameter should override the default
+    trial = Trial(MockExperiment(), config)
+    trial.run()
+
+    assert trial.get_data(["add_custom"]) == ["input_0_CORRECT"]
+
+
+# def test_setting_methods_as_parameters():
+#     """Test replacing structural components with parameters"""
+#     pass
+
+# def test_conditional_structures():
+#     """Test only running parts of a structure under certain conditions"""
+#     pass
