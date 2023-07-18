@@ -9,12 +9,15 @@ class Trial:
     def __init__(self, parent_experiment, config):
         self.parent_experiment = parent_experiment
 
-        structure = config["structure"]
+        # Get the function for each process
+        self.proc_functions = self.get_proc_functions(config["structure"])
+        # Convert the config to a simpler dependency structure
+        self.proc_dependencies = self.get_proc_dependencies(config["structure"])
+        self.proc_names = self.get_organized_proc_names(self.proc_dependencies)
+        # Extract the parameters relevant to each process
         params = config["parameters"] if "parameters" in config else {}
-        self.proc_dependencies = structure
-        self.proc_functions = {p: get_process(p) for p in structure}
-        self.proc_names = self.get_organized_proc_names(structure)
-        self.proc_params = {p: self.get_proc_params(p, params) for p in structure}
+        self.proc_params = {p: self.get_proc_params(p, params) for p in self.proc_names}
+        # Hash each process based on its params and dependencies
         self.proc_hashes = self.get_proc_hashes(self.proc_names)
 
     def run(self):
@@ -58,6 +61,27 @@ class Trial:
             data.append(data_for_src)
 
         return data
+
+    def get_proc_functions(self, structure):
+        """Get the function relevant to each process 'name'"""
+        proc_functions = {}
+        for name in structure:
+            # If the name is of the form "x <- y", the name is x, the process is y
+            name = name.split("<-")
+            proc_name = name[0].strip()
+            function = name[-1].strip()
+            proc_functions[proc_name] = get_process(function)
+
+        return proc_functions
+
+    def get_proc_dependencies(self, structure):
+        """Simplify the given structure into a dependency dict"""
+        simplified_structure = {}
+        for proc_name, proc_deps in structure.items():
+            if "<-" in proc_name:
+                proc_name = proc_name.split("<-")[0].strip()
+            simplified_structure[proc_name] = proc_deps
+        return simplified_structure
 
     def get_proc_hashes(self, proc_names):
         """
