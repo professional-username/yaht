@@ -1,75 +1,90 @@
 #!/usr/bin/env python3
-import yaml
+import yaht.experiment
 from yaht.experiment import Experiment
-from yaht.processes import register_process
-
-EXAMPLE_CONFIG = """
-Experiment:
-  inputs: [ "input" ]
-  outputs: [ f1 ]
-  structure:
-    f1: [ inputs ]
-"""
 
 
-# Example functions
-@register_process
-def f1(x):
-    y = x.upper()
-    return y
-
-
-@register_process
-def f2(x):
-    y = x[0].lower() + x[1:]
-    return y
-
-
-@register_process
-def f3(a, b):
-    y = a + b
-    return y
-
-
-def test_run_functions():
+def test_create_experiment(mocker):
     """
-    Test that we can create an experiment
-    and that it will run registered function
+    Test that creating an experiment passes the right arguments
+    to the Trial and CacheManager
     """
-    # Example config that runs "input" through the function f1, then f2
-    example_config = [
-        'inputs: [ "input" ]',
-        "outputs: [ f2 ]",
-        "structure:",
-        "  f1: [ inputs.0 ]",
-        "  f2: [ f1 ]",
-    ]
-    example_config = yaml.safe_load("\n".join(example_config))
+    mock_trial = mocker.patch("yaht.experiment.Trial", autospec=True)
+    mock_cache_manager = mocker.patch("yaht.experiment.CacheManager", autospec=True)
+    config = {
+        "inputs": ["some_input"],
+        "outputs": ["some_output"],
+        "structure": "someStructure",
+        "cache_dir": "someCacheDir",
+    }
 
-    experiment = Experiment(example_config)
-    experiment.run()
+    # Create the experiment and check the mocks were called correctly
+    exp = Experiment(config)
+    mock_trial.assert_called_with(
+        exp,
+        {
+            "structure": "someStructure",
+            "parameters": {},
+        },
+    )
+    mock_cache_manager.assert_called_with("someCacheDir")
 
-    output = experiment.get_outputs()
-    assert output == ["iNPUT"]
+
+def test_create_multi_trial_experiment(mocker):
+    """
+    Test that passing including 'trials' in the config
+    results in multiple trials with the right parameters
+    """
+    mock_trial = mocker.patch("yaht.experiment.Trial", autospec=True)
+    mocker.patch("yaht.experiment.CacheManager", autospec=True)
+    config = {
+        "inputs": ["test_input"],
+        "outputs": ["add_foo"],
+        "cache_dir": "someCacheDir",
+        "structure": "someStructure",
+        "trials": {
+            "trial1": "some_parameters",
+            "trial2": "some_other_parameters",
+        },
+    }
+
+    # Create the experiment and check trial was called with both sets of params,
+    # as well as a control
+    exp = Experiment(config)
+    mock_trial.assert_any_call(exp, {"structure": "someStructure", "parameters": {}})
+    mock_trial.assert_any_call(
+        exp,
+        {"structure": "someStructure", "parameters": "some_parameters"},
+    )
+    mock_trial.assert_any_call(
+        exp,
+        {"structure": "someStructure", "parameters": "some_other_parameters"},
+    )
 
 
-def test_function_web():
-    """Test that we can run functions in a more complicated web"""
-    # Example config that runs some example functions in a web
-    example_config = [
-        'inputs: [ "one", "two" ]',
-        "outputs: [ f3 ]",
-        "structure:",
-        "  f3: [ f2, inputs.1 ]",
-        "  f2: [ f1 ]",
-        "  f1: [ inputs.0 ]",
-    ]
-    example_config = yaml.safe_load("\n".join(example_config))
+# class MockTrial:
+#     def __init__(self, *args, **kwargs):
+#         # Store the inputs in instance variables for later verification:
+#         self.args = args
+#         self.kwargs = kwargs
 
-    # Experiment should run "one" through f1, then f2
-    # then combine that with "two" in f3
-    experiment = Experiment(example_config)
-    experiment.run()
+# class MockCacheManager:
+#     def __init__(self, *args, **kwargs):
+#         # Store the inputs in instance variables for later verification:
+#         self.args = args
+#         self.kwargs = kwargs
 
-    output = experiment.get_outputs()
-    assert output == ["oNEtwo"]
+
+# def test_get_input():
+#     pass
+
+
+# def test_get_data():
+#     pass
+
+
+# def test_set_data():
+#     pass
+
+
+# def test_check_data():
+#     pass
