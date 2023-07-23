@@ -52,6 +52,16 @@ def test_check_item_exists(cache_dir):
     assert item_exists
 
 
+def test_delete_item(cache_dir):
+    """Test that after deleting an item it no longer exists"""
+    index = CacheIndex(cache_dir)
+    index.add_item("someHashKey")
+    # Delete the item and check it doesn't exist'
+    index.delete_item("someHashKey")
+    item_exists = index.check_item_exists("someHashKey")
+    assert not item_exists
+
+
 def test_get_item_file(cache_dir):
     """Test that after creating an item we can retrieve its file"""
     index = CacheIndex(cache_dir)
