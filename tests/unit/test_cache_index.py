@@ -40,14 +40,26 @@ def test_create_item(cache_dir):
     index.add_item("anotherHashKey", legend="someLegend")
 
 
+def test_check_item_exists(cache_dir):
+    """Test that after adding an item it can be checked to exist"""
+    index = CacheIndex(cache_dir)
+    # Check the item doesn't exist to start with
+    item_exists = index.check_item_exists("someHashKey")
+    assert not item_exists
+    # Add the item and check it exists
+    index.add_item("someHashKey")
+    item_exists = index.check_item_exists("someHashKey")
+    assert item_exists
+
+
 def test_get_item_file(cache_dir):
     """Test that after creating an item we can retrieve its file"""
     index = CacheIndex(cache_dir)
     # Add an item and try to get its file
     hash_key = "someHashKey"
     index.add_item(hash_key)
-    file = index.get_item_filename(hash_key)
-    assert file is not None
+    filename = index.get_item_filename(hash_key)
+    assert filename is not None
 
 
 def test_get_item_legend(cache_dir):

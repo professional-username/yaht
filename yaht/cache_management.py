@@ -41,6 +41,21 @@ class CacheIndex:
         cursor = self.connection.cursor()
         cursor.execute(add_item_query)
 
+    def check_item_exists(self, key):
+        """Check whether a key exists in the db"""
+        check_query = (
+            """
+        SELECT 1
+        FROM CachedData
+        WHERE hash_id = '%s'
+        """
+            % key
+        )
+        cursor = self.connection.cursor()
+        cursor.execute(check_query)
+        data = cursor.fetchall()
+        return len(data) > 0
+
     def get_item_legend(self, key):
         """Get the legend associated with the given key"""
         return self.get_item_parameter(key, "legend")
