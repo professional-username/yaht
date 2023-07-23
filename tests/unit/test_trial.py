@@ -56,6 +56,7 @@ def test_single_process_trial():
     # Run the trial
     trial = Trial(MockExperiment(), config)
     trial.run()
+
     # Assert the right external functions were called with the right values
     assert trial.get_data(["add_foo"]) == ["input_0_foo"]
 
