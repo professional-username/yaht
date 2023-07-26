@@ -41,7 +41,16 @@ class Experiment:
         otherwise return the input as given
         """
         input_index = int(input_index)
-        return self.input_names[input_index]
+        input_name = self.input_names[input_index]
+        # If the input is a file, load the file
+        if str(input_name).startswith("file:"):
+            input_name = input_name[5:]
+            input_data = self.parent_laboratory.get_data_by_fname(input_name)
+        # Otherwise, the input provided in the config is taken literally
+        else:
+            input_data = input_name
+
+        return input_data
 
     def get_outputs(self):
         """
