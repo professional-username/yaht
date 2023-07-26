@@ -3,8 +3,11 @@ from yaht.cache_management import CacheManager
 
 
 class Experiment:
-    def __init__(self, config):
-        self.cache_manager = CacheManager(config["cache_dir"])
+    def __init__(self, config, parent_laboratory):
+        self.input_names = config["inputs"]
+        self.output_proc_names = config["outputs"]
+
+        self.parent_laboratory = parent_laboratory
         trial_configs = self.extract_trial_configs(config)
         self.trials = {t: Trial(self, trial_configs[t]) for t in trial_configs}
 
@@ -26,3 +29,40 @@ class Experiment:
             trial_configs[trial_name] = new_trial_config
 
         return trial_configs
+
+    def run_trials(self):
+        """Run each trial one by one"""
+        for trial_name in self.trials:
+            self.trials[trial_name].run()
+
+    def get_input(self, input_index):
+        """
+        If input is a file, pass the call to the parent laboratory,
+        otherwise return the input as given
+        """
+        input_index = int(input_index)
+        return self.input_names[input_index]
+
+    def get_outputs(self):
+        """
+        Use self.output_names to retrieve output data from the parent lab,
+        by getting the relevant data hash from each trial
+        """
+        outputs = {}
+        for trial_name, trial in self.trials.items():
+            trial_output_hashes = [trial.proc_hashes[o] for o in self.output_proc_names]
+            trial_outputs = [self.get_data(h) for h in trial_output_hashes]
+            outputs[trial_name] = trial_outputs
+        return outputs
+
+    def get_data(self, data_index):
+        """Pass on data calls to the parent laboratory"""
+        return self.parent_laboratory.get_data(data_index)
+
+    def set_data(self, data_index, data):
+        """Pass on data calls to the parent laboratory"""
+        self.parent_laboratory.set_data(data_index, data)
+
+    def check_data(self, data_index):
+        """Pass on data calls to the parent laboratory"""
+        return self.parent_laboratory.check_data(data_index)
