@@ -1,90 +1,128 @@
 #!/usr/bin/env python3
-import yaht.experiment
+from yaht.processes import register_process
 from yaht.experiment import Experiment
 
 
-def test_create_experiment(mocker):
-    """
-    Test that creating an experiment passes the right arguments
-    to the Trial and CacheManager
-    """
-    mock_trial = mocker.patch("yaht.experiment.Trial", autospec=True)
-    mock_cache_manager = mocker.patch("yaht.experiment.CacheManager", autospec=True)
+# Example function to be used to check outputs etc
+@register_process
+def add_two_and_custom(x, y, custom="custom"):
+    return "%s_%s_%s" % (x, y, custom)
+
+
+# Mock Laboratory with basic necessary functionality for testing
+class MockLaboratory:
+    def __init__(self):
+        self.data = {}
+
+    def get_data_by_fname(self, fname):
+        return "FILE-%s" % fname
+
+    def get_data(self, key):
+        return self.data[key]
+
+    def set_data(self, key, data):
+        self.data[key] = data
+
+    def check_data(self, key):
+        return key in self.data
+
+
+def test_control_only_trial():
+    """Test running a simple experiment with a single trial"""
     config = {
-        "inputs": ["some_input"],
-        "outputs": ["some_output"],
-        "structure": "someStructure",
-        "cache_dir": "someCacheDir",
+        "inputs": ["input-1", "input-2"],
+        "structure": {"add_two_and_custom": ["inputs.0", "inputs.1"]},
+        "outputs": ["add_two_and_custom"],
     }
+    exp = Experiment(config, MockLaboratory())
 
-    # Create the experiment and check the mocks were called correctly
-    exp = Experiment(config)
-    mock_trial.assert_called_with(
-        exp,
-        {
-            "structure": "someStructure",
-            "parameters": {},
-        },
-    )
-    mock_cache_manager.assert_called_with("someCacheDir")
+    exp.run_trials()
+    outputs = exp.get_outputs()
+
+    assert outputs == {"control": ["input-1_input-2_custom"]}
 
 
-def test_create_multi_trial_experiment(mocker):
-    """
-    Test that passing including 'trials' in the config
-    results in multiple trials with the right parameters
-    """
-    mock_trial = mocker.patch("yaht.experiment.Trial", autospec=True)
-    mocker.patch("yaht.experiment.CacheManager", autospec=True)
+def test_reading_input_from_files():
+    """Test reading inputs from the parent Laboratory's files"""
     config = {
-        "inputs": ["test_input"],
-        "outputs": ["add_foo"],
-        "cache_dir": "someCacheDir",
-        "structure": "someStructure",
+        "inputs": ["input-1", "file:input-2"],
+        "structure": {"add_two_and_custom": ["inputs.0", "inputs.1"]},
+        "outputs": ["add_two_and_custom"],
+    }
+    exp = Experiment(config, MockLaboratory())
+
+    exp.run_trials()
+    outputs = exp.get_outputs()
+
+    assert outputs == {"control": ["input-1_FILE-input-2_custom"]}
+
+
+def test_only_run_needed_processes():
+    """
+    Test that if data exists in the parent laboratory,
+    the relevant methods are not run
+    """
+    config = {
+        "inputs": ["input-1", "input-2"],
+        "structure": {"add_two_and_custom": ["inputs.0", "inputs.1"]},
+        "outputs": ["add_two_and_custom"],
+    }
+    lab = MockLaboratory()
+    exp = Experiment(config, lab)
+
+    # Run the trials, change the data, run again and check data is unchanged
+    exp.run_trials()
+    outputs = exp.get_outputs()
+    k = list(lab.data.keys())[0]
+    lab.data[k] = "fake_data"
+    exp.run_trials()
+    outputs = exp.get_outputs()
+
+    assert outputs == {"control": ["fake_data"]}
+
+
+def test_multiple_trials():
+    """Test that we can run different trials with different parameters"""
+    config = {
+        "inputs": ["input-1", "input-2"],
+        "structure": {"add_two_and_custom": ["inputs.0", "inputs.1"]},
+        "outputs": ["add_two_and_custom"],
         "trials": {
-            "trial1": "some_parameters",
-            "trial2": "some_other_parameters",
+            "trial1": {"custom": "t1"},
+            "trial2": {"custom": "t2"},
         },
     }
+    exp = Experiment(config, MockLaboratory())
 
-    # Create the experiment and check trial was called with both sets of params,
-    # as well as a control
-    exp = Experiment(config)
-    mock_trial.assert_any_call(exp, {"structure": "someStructure", "parameters": {}})
-    mock_trial.assert_any_call(
-        exp,
-        {"structure": "someStructure", "parameters": "some_parameters"},
-    )
-    mock_trial.assert_any_call(
-        exp,
-        {"structure": "someStructure", "parameters": "some_other_parameters"},
-    )
+    exp.run_trials()
+    outputs = exp.get_outputs()
+
+    assert outputs == {
+        "control": ["input-1_input-2_custom"],
+        "trial1": ["input-1_input-2_t1"],
+        "trial2": ["input-1_input-2_t2"],
+    }
 
 
-# class MockTrial:
-#     def __init__(self, *args, **kwargs):
-#         # Store the inputs in instance variables for later verification:
-#         self.args = args
-#         self.kwargs = kwargs
+def test_global_parameters():
+    """Test applying parameters to all trials unless overriden"""
+    config = {
+        "inputs": ["input-1", "input-2"],
+        "structure": {"add_two_and_custom": ["inputs.0", "inputs.1"]},
+        "outputs": ["add_two_and_custom"],
+        "trials": {
+            "trial1": {"random_param": "param"},
+            "trial2": {"custom": "t2"},
+        },
+        "params": {"custom": "default"},
+    }
+    exp = Experiment(config, MockLaboratory())
 
-# class MockCacheManager:
-#     def __init__(self, *args, **kwargs):
-#         # Store the inputs in instance variables for later verification:
-#         self.args = args
-#         self.kwargs = kwargs
+    exp.run_trials()
+    outputs = exp.get_outputs()
 
-
-# def test_get_input():
-#     pass
-
-
-# def test_get_data():
-#     pass
-
-
-# def test_set_data():
-#     pass
-
-
-# def test_check_data():
-#     pass
+    assert outputs == {
+        "control": ["input-1_input-2_default"],
+        "trial1": ["input-1_input-2_default"],
+        "trial2": ["input-1_input-2_t2"],
+    }
