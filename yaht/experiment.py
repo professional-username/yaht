@@ -18,14 +18,15 @@ class Experiment:
             config["trials"] = {}
         config["trials"]["control"] = {}
 
+        # Get global parameters if there are any
+        global_params = config["params"] if "params" in config else {}
+
         # Assemble the trial configs
         trial_configs = {}
         structure = config["structure"]
         for trial_name in config["trials"]:
-            new_trial_config = {
-                "structure": structure,
-                "parameters": config["trials"][trial_name],
-            }
+            trial_params = global_params | config["trials"][trial_name]
+            new_trial_config = {"structure": structure, "parameters": trial_params}
             trial_configs[trial_name] = new_trial_config
 
         return trial_configs
