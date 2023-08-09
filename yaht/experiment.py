@@ -11,6 +11,8 @@ class Experiment:
         trial_configs = self.extract_trial_configs(config)
         self.trials = {t: Trial(self, trial_configs[t]) for t in trial_configs}
 
+        self.currently_running_trial = ""
+
     def extract_trial_configs(self, config):
         """Convert the experiment config into several trial configs"""
         # Ensure that the config has a "trials" section with at least a 'control'
@@ -34,6 +36,7 @@ class Experiment:
     def run_trials(self):
         """Run each trial one by one"""
         for trial_name in self.trials:
+            self.currently_running_trial = trial_name  # Track the current trial
             self.trials[trial_name].run()
 
     def get_input(self, input_index):
@@ -69,9 +72,16 @@ class Experiment:
         """Pass on data calls to the parent laboratory"""
         return self.parent_laboratory.get_data(data_index)
 
-    def set_data(self, data_index, data):
+    def set_data(self, data_index, data, metadata={}):
         """Pass on data calls to the parent laboratory"""
-        self.parent_laboratory.set_data(data_index, data)
+        # Update the metadata
+        metadata["source"] = (
+            "%s.%s" % (self.currently_running_trial, metadata["source"])
+            if "source" in metadata
+            else self.currently_running_trial
+        )
+
+        self.parent_laboratory.set_data(data_index, data, metadata)
 
     def check_data(self, data_index):
         """Pass on data calls to the parent laboratory"""
