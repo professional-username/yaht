@@ -40,8 +40,12 @@ class Trial:
 
     def set_data(self, proc, data):
         """Make calls to the parent experiment with the right keys"""
+        # Get the relevant key for the proc
         data_hash = self.proc_hashes[proc]
-        self.parent_experiment.set_data(data_hash, data)
+        # Generate the metadata
+        metadata = {}
+        metadata["source"] = proc
+        self.parent_experiment.set_data(data_hash, data, metadata)
 
     def get_data(self, sources):
         """Make calls to the parent experiment with the right keys"""

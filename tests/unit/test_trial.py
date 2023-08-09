@@ -31,6 +31,7 @@ def add(x, y):
 class MockExperiment:
     def __init__(self):
         self.data = {}
+        self.metadata = {}
 
     def get_input(self, input_index):
         return "input_%s" % input_index
@@ -38,8 +39,9 @@ class MockExperiment:
     def get_data(self, key):
         return self.data.get(key)
 
-    def set_data(self, key, value):
+    def set_data(self, key, value, metadata=None):
         self.data[key] = value
+        self.metadata[key] = metadata
 
     def check_data(self, key):
         return key in self.data
@@ -57,8 +59,27 @@ def test_single_process_trial():
     trial = Trial(MockExperiment(), config)
     trial.run()
 
-    # Assert the right external functions were called with the right values
+    # get_data can be used externally to get the data being handled by the trial
     assert trial.get_data(["add_foo"]) == ["input_0_foo"]
+
+
+def test_data_exporting():
+    """Test that data and metadata is exported to the parent experiment"""
+    config = {
+        "structure": {
+            "add_foo": ["inputs.0"],
+        },
+    }
+
+    # Run the trial
+    parent_experiment = MockExperiment()
+    trial = Trial(parent_experiment, config)
+    trial.run()
+
+    # A single piece of data and relevant metadata should have been exported
+    key = list(parent_experiment.data.keys())[0]
+    assert parent_experiment.data[key] == "input_0_foo"
+    assert parent_experiment.metadata[key] == {"source": "add_foo"}
 
 
 def test_process_web():
@@ -74,7 +95,6 @@ def test_process_web():
     trial = Trial(MockExperiment(), config)
     trial.run()
 
-    # Assert the right external functions were called with the right values
     assert trial.get_data(["add_foobar", "add_foo", "add"]) == [
         ("input_1_foo", "input_1_bar"),
         "input_1_foo_foo",
