@@ -13,6 +13,7 @@ def add_two_and_custom(x, y, custom="custom"):
 class MockLaboratory:
     def __init__(self):
         self.data = {}
+        self.metadata = {}
 
     def get_data_by_fname(self, fname):
         return "FILE-%s" % fname
@@ -20,8 +21,9 @@ class MockLaboratory:
     def get_data(self, key):
         return self.data[key]
 
-    def set_data(self, key, data):
+    def set_data(self, key, data, metadata=None):
         self.data[key] = data
+        self.metadata[key] = metadata
 
     def check_data(self, key):
         return key in self.data
@@ -126,3 +128,21 @@ def test_global_parameters():
         "trial1": ["input-1_input-2_default"],
         "trial2": ["input-1_input-2_t2"],
     }
+
+
+def test_metadata_generation():
+    """Test the every method run generates the correct metadata"""
+    config = {
+        "inputs": ["input-1", "input-2"],
+        "structure": {"add_two_and_custom": ["inputs.0", "inputs.1"]},
+        "outputs": ["add_two_and_custom"],
+    }
+    parent_lab = MockLaboratory()
+    exp = Experiment(config, parent_lab)
+
+    exp.run_trials()
+    outputs = exp.get_outputs()
+
+    assert (
+        list(parent_lab.metadata.values())[0]["source"] == "control.add_two_and_custom"
+    )
