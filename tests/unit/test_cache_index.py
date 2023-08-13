@@ -93,6 +93,21 @@ def test_get_keys_by_parameter(cache_dir):
     assert retrieved_keys == [first_key, second_key]
 
 
+def test_generated_filename(cache_dir):
+    """Test that a filename is generated based on the source or key"""
+    index = CacheIndex(cache_dir)
+
+    # If no metadata is provided, the filename should be the key
+    index.add_item("someHashKey")
+    filename = index.get_item_metadata("someHashKey", "filename")
+    assert filename == "someHashKey"
+
+    # If source are provided, the filename should be the first one, + some of the key
+    index.add_item("anotherHashKey", {"source": "some.source"})
+    filename = index.get_item_metadata("anotherHashKey", "filename")
+    assert filename.startswith("some.source")
+
+
 # TODO
 # def test_get_item_creation_time(cache_dir):
 #     """Test getting the datetime that the item was created at"""
