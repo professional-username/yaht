@@ -18,27 +18,36 @@ class CacheIndex:
         CREATE TABLE IF NOT EXISTS CachedData (
             hash_id TEXT PRIMARY KEY NOT NULL,
             filename TEXT,
-            legend TEXT
+            source TEXT
         );"""
         cursor = self.connection.cursor()
         cursor.execute(create_table_query)
 
-    def add_item(self, key, legend=None):
+    def add_item(self, key, metadata={}):
         """Add a new item to the index"""
-        if legend is None:
-            legend = key
+        expected_metadata = ["source"]
+        for em in expected_metadata:
+            if em not in metadata:
+                metadata[em] = None
 
-        # TODO: Generate a more useful filename
-        filename = key
+        # Generate the filename based on the source
+        if "filename" in metadata:
+            filename = metadata["filename"]
+        elif metadata["source"]:
+            filename = metadata["source"] + key[:5]
+        else:
+            filename = key
 
+        # Store the key and the relevant metadata
         add_item_query = """
         INSERT INTO CachedData
         VALUES ('%s', '%s', '%s');
         """ % (
             key,
             filename,
-            legend,
+            metadata["source"],
         )
+
         cursor = self.connection.cursor()
         cursor.execute(add_item_query)
 
@@ -69,28 +78,35 @@ class CacheIndex:
         data = cursor.fetchall()
         return len(data) > 0
 
-    def get_item_legend(self, key):
-        """Get the legend associated with the given key"""
-        return self.get_item_parameter(key, "legend")
-
-    def get_item_filename(self, key):
-        """Get the filename associated with the given key"""
-        return self.get_item_parameter(key, "filename")
-
-    def get_item_parameter(self, key, parameter):
-        """Get the parameter associated with the given key"""
+    def get_item_metadata(self, key, column):
+        """Get the metadata associated with the given key"""
         get_legend_query = """
         SELECT %s
         FROM CachedData
         WHERE hash_id='%s';
         """ % (
-            parameter,
+            column,
             key,
         )
         cursor = self.connection.cursor()
         cursor.execute(get_legend_query)
-        param = cursor.fetchone()[0]
-        return param
+        metadata = cursor.fetchone()[0]
+        return metadata
+
+    def get_keys_by_metadata(self, data, column):
+        """Get the keys that have the given metadata"""
+        get_legend_query = """
+        SELECT hash_id
+        FROM CachedData
+        WHERE %s='%s';
+        """ % (
+            column,
+            data,
+        )
+        cursor = self.connection.cursor()
+        cursor.execute(get_legend_query)
+        keys = [key[0] for key in cursor.fetchall()]
+        return keys
 
 
 class CacheManager:

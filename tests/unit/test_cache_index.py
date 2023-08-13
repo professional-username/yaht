@@ -13,6 +13,14 @@ def cache_dir():
     yield os.path.join(new_dir, "cache")
 
 
+@pytest.fixture
+def example_metadata():
+    metadata = {
+        "source": "some.source",
+    }
+    yield metadata
+
+
 def test_create_cache_index(cache_dir):
     """Test that initializing a CacheIndex creates an index file in the cache"""
     CacheIndex(cache_dir)
@@ -31,13 +39,13 @@ def test_create_cache_index(cache_dir):
 #     # Query and check the tables in the db
 
 
-def test_create_item(cache_dir):
+def test_create_item(cache_dir, example_metadata):
     """Test that we can add an item to the index"""
     index = CacheIndex(cache_dir)
     # Add an item, only specifying the key
     index.add_item("someHashKey")
-    # Add an item, specifying a key and legend
-    index.add_item("anotherHashKey", legend="someLegend")
+    # Add an item, specifying a key and metadata
+    index.add_item("anotherHashKey", example_metadata)
 
 
 def test_check_item_exists(cache_dir):
@@ -62,23 +70,30 @@ def test_delete_item(cache_dir):
     assert not item_exists
 
 
-def test_get_item_file(cache_dir):
-    """Test that after creating an item we can retrieve its file"""
+def test_get_item_metadata(cache_dir):
+    """Test that after creating an item we can retrieve some of its metadata"""
     index = CacheIndex(cache_dir)
     # Add an item and try to get its file
     hash_key = "someHashKey"
-    index.add_item(hash_key)
-    filename = index.get_item_filename(hash_key)
-    assert filename is not None
+    metadata = {"source": "example_source"}
+    index.add_item(hash_key, metadata)
+    source = index.get_item_metadata(hash_key, "source")
+    assert source == "example_source"
 
 
-def test_get_item_legend(cache_dir):
-    """Test that after creating an item we can retrieve its legend"""
+def test_get_keys_by_parameter(cache_dir):
+    """Test that we can get item keys given some metadata"""
     index = CacheIndex(cache_dir)
-    # Add an item, specifying a key and legend
-    index.add_item("someHashKey", legend="someLegend")
-    legend = index.get_item_legend("someHashKey")
-    assert legend == "someLegend"
+    # Add two items with the same metadata
+    first_key = "someHashKey"
+    second_key = "someOtherKey"
+    metadata = {"source": "example_source"}
+    index.add_item(first_key, metadata)
+    index.add_item(second_key, metadata)
+
+    # Test that we can get all the keys with that metadata
+    retrieved_keys = index.get_keys_by_metadata("example_source", "source")
+    assert retrieved_keys == [first_key, second_key]
 
 
 # TODO
