@@ -23,24 +23,23 @@ def test_cache_creation(cache_dir):
 
 def test_send_data(cache_dir):
     """Test that we can call send_data with the right arguments"""
-    # The data must have a descriptor, and the actual data
-    test_data = {"legend": "Some descriptor", "data": "Some test data"}
     data_hash = "someKey"
+    test_data = "someTestData"
+    metadata = {"source": "someSource"}
 
     # Send the data
     cache = CacheManager(cache_dir)
-    cache.send_data(data_hash, test_data)
+    cache.send_data(data_hash, test_data)  # On its own
+    cache.send_data(data_hash, test_data, metadata)  # With metadata
 
     # Check that a file is created
-    cache_index = cache.cache_index
-    expected_file = cache_index.get_item_filename(data_hash)
-    assert os.path.exists(expected_file)
+    assert len(os.listdir(cache_dir)) > 0
 
 
 def test_get_data(cache_dir):
     """Test getting a value back from the cache"""
-    test_data = {"legend": "Some descriptor", "data": "Some test data"}
     data_hash = "someKey"
+    test_data = "someTestData"
     cache = CacheManager(cache_dir)
     cache.send_data(data_hash, test_data)
 
@@ -49,17 +48,47 @@ def test_get_data(cache_dir):
     assert retrieved_data == test_data
 
 
+def test_get_metadata(cache_dir):
+    """Test that we can retrieve metadata after it's been saved"""
+    data_hash = "someKey"
+    test_data = "someTestData"
+    metadata = {"source": "someSource"}
+
+    # Send the data
+    cache = CacheManager(cache_dir)
+    cache.send_data(data_hash, test_data, metadata)
+
+    # And retrieve it again
+    source = cache.get_metadata(data_hash, "source")
+    assert source == "someSource"
+
+
+def test_get_key_by_metadata(cache_dir):
+    """Test that we can get a list of keys associated with a given metadata"""
+    data_hash = "someKey"
+    test_data = "someTestData"
+    metadata = {"source": "someSource"}
+
+    # Send the data
+    cache = CacheManager(cache_dir)
+    cache.send_data(data_hash, test_data, metadata)
+
+    # And retrieve the key
+    keys = cache.get_keys_by_metadata("someSource", "source")
+    assert keys == ["someKey"]
+
+
 def test_delete_data(cache_dir):
     """Test deleting a value from the cache"""
     # Send some data to the cache
-    test_data = {"legend": "Some descriptor", "data": "Some test data"}
     data_hash = "someKey"
+    test_data = "someTestData"
     cache = CacheManager(cache_dir)
     cache.send_data(data_hash, test_data)
 
     # Record what the filename of the test data would be
     cache_index = cache.cache_index
-    filename = cache_index.get_item_filename(data_hash)
+    filename = cache_index.get_item_metadata(data_hash, "filename")
 
     # Delete the data and check that the file and entry no longer exist
     cache.delete_data(data_hash)
@@ -73,8 +102,8 @@ def test_check_cache(cache_dir):
     without loading the relevant data
     """
     # Send some data to the cache
-    test_data = {"legend": "Some descriptor", "data": "Some test data"}
     data_hash = "someKey"
+    test_data = "someTestData"
     cache = CacheManager(cache_dir)
     cache.send_data(data_hash, test_data)
 

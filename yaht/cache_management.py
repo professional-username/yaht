@@ -114,24 +114,28 @@ class CacheManager:
         """Connect to the cache, initialize it if necessary"""
         self.cache_index = CacheIndex(cache_dir)
 
-    def send_data(self, key, data):
+    def send_data(self, key, data, metadata={}):
         """Save the data and record its metadata in the cache index"""
         # Create a new item if it doesn't exist
         if not self.cache_index.check_item_exists(key):
-            self.cache_index.add_item(key, data["legend"])
+            self.cache_index.add_item(key, metadata)
         # Write the data to the relevant filename
-        filename = self.cache_index.get_item_filename(key)
+        filename = self.cache_index.get_item_metadata(key, "filename")
         with open(filename, "wb") as f:
-            pickle.dump(data["data"], f)
+            pickle.dump(data, f)
 
     def get_data(self, key):
         """Load the data from the cache by the given key"""
-        filename = self.cache_index.get_item_filename(key)
+        filename = self.cache_index.get_item_metadata(key, "filename")
         with open(filename, "rb") as f:
-            raw_data = pickle.load(f)
-        data_legend = self.cache_index.get_item_legend(key)
-        data = {"data": raw_data, "legend": data_legend}
+            data = pickle.load(f)
         return data
+
+    def get_metadata(self, key, column):
+        return self.cache_index.get_item_metadata(key, column)
+
+    def get_keys_by_metadata(self, data, column):
+        return self.cache_index.get_keys_by_metadata(data, column)
 
     def check_data(self, key):
         return self.cache_index.check_item_exists(key)
@@ -141,6 +145,6 @@ class CacheManager:
         if not self.cache_index.check_item_exists(key):
             return
 
-        filename = self.cache_index.get_item_filename(key)
+        filename = self.cache_index.get_item_metadata(key, "filename")
         os.remove(filename)
         self.cache_index.delete_item(key)
