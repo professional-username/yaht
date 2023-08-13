@@ -13,14 +13,6 @@ def cache_dir():
     yield os.path.join(new_dir, "cache")
 
 
-@pytest.fixture
-def example_metadata():
-    metadata = {
-        "source": "some.source",
-    }
-    yield metadata
-
-
 def test_create_cache_index(cache_dir):
     """Test that initializing a CacheIndex creates an index file in the cache"""
     CacheIndex(cache_dir)
@@ -39,13 +31,19 @@ def test_create_cache_index(cache_dir):
 #     # Query and check the tables in the db
 
 
-def test_create_item(cache_dir, example_metadata):
+def test_create_item(cache_dir):
     """Test that we can add an item to the index"""
     index = CacheIndex(cache_dir)
     # Add an item, only specifying the key
     index.add_item("someHashKey")
+
+
+def test_create_item_with_metadata(cache_dir):
+    """Test that we can create an item with correctly formatted metadata"""
+    index = CacheIndex(cache_dir)
     # Add an item, specifying a key and metadata
-    index.add_item("anotherHashKey", example_metadata)
+    metadata = {"source": "some.source"}
+    index.add_item("anotherHashKey", metadata)
 
 
 def test_check_item_exists(cache_dir):
@@ -91,7 +89,6 @@ def test_get_keys_by_parameter(cache_dir):
     index.add_item(first_key, metadata)
     index.add_item(second_key, metadata)
 
-    # Test that we can get all the keys with that metadata
     retrieved_keys = index.get_keys_by_metadata("example_source", "source")
     assert retrieved_keys == [first_key, second_key]
 
