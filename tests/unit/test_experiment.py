@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import pandas as pd
 from yaht.processes import register_process
 from yaht.experiment import Experiment
 
@@ -30,7 +31,10 @@ class MockLaboratory:
 
 
 def test_control_only_trial():
-    """Test running a simple experiment with a single trial"""
+    """
+    Test running a simple experiment with a single trial,
+    verify that the output is exactly correct
+    """
     config = {
         "inputs": ["input-1", "input-2"],
         "structure": {"add_two_and_custom": ["inputs.0", "inputs.1"]},
@@ -40,8 +44,14 @@ def test_control_only_trial():
 
     exp.run_trials()
     outputs = exp.get_outputs()
+    print("Test run")
 
-    assert outputs == {"control": ["input-1_input-2_custom"]}
+    # Output should be a pd dataframe
+    expected_outputs = pd.DataFrame(columns=["data", "trial", "process"])
+    expected_outputs["trial"] = ["control"]
+    expected_outputs["process"] = ["add_two_and_custom"]
+    expected_outputs["data"] = ["input-1_input-2_custom"]
+    assert outputs.equals(expected_outputs)
 
 
 def test_reading_input_from_files():
@@ -56,7 +66,7 @@ def test_reading_input_from_files():
     exp.run_trials()
     outputs = exp.get_outputs()
 
-    assert outputs == {"control": ["input-1_FILE-input-2_custom"]}
+    assert outputs["data"].values == ["input-1_FILE-input-2_custom"]
 
 
 def test_only_run_needed_processes():
@@ -80,7 +90,7 @@ def test_only_run_needed_processes():
     exp.run_trials()
     outputs = exp.get_outputs()
 
-    assert outputs == {"control": ["fake_data"]}
+    assert outputs["data"].values == ["fake_data"]
 
 
 def test_multiple_trials():
@@ -99,10 +109,11 @@ def test_multiple_trials():
     exp.run_trials()
     outputs = exp.get_outputs()
 
+    outputs = dict(zip(outputs["trial"], outputs["data"]))
     assert outputs == {
-        "control": ["input-1_input-2_custom"],
-        "trial1": ["input-1_input-2_t1"],
-        "trial2": ["input-1_input-2_t2"],
+        "control": "input-1_input-2_custom",
+        "trial1": "input-1_input-2_t1",
+        "trial2": "input-1_input-2_t2",
     }
 
 
@@ -123,10 +134,11 @@ def test_global_parameters():
     exp.run_trials()
     outputs = exp.get_outputs()
 
+    outputs = dict(zip(outputs["trial"], outputs["data"]))
     assert outputs == {
-        "control": ["input-1_input-2_default"],
-        "trial1": ["input-1_input-2_default"],
-        "trial2": ["input-1_input-2_t2"],
+        "control": "input-1_input-2_default",
+        "trial1": "input-1_input-2_default",
+        "trial2": "input-1_input-2_t2",
     }
 
 

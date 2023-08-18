@@ -1,5 +1,6 @@
+import pandas as pd
+from itertools import product
 from yaht.trial import Trial
-from yaht.cache_management import CacheManager
 
 
 class Experiment:
@@ -61,11 +62,21 @@ class Experiment:
         Use self.output_names to retrieve output data from the parent lab,
         by getting the relevant data hash from each trial
         """
-        outputs = {}
-        for trial_name, trial in self.trials.items():
-            trial_output_hashes = [trial.proc_hashes[o] for o in self.output_proc_names]
-            trial_outputs = [self.get_data(h) for h in trial_output_hashes]
-            outputs[trial_name] = trial_outputs
+        outputs = pd.DataFrame(columns=["data", "trial", "process"])
+        for trial_name, proc_name in product(self.trials, self.output_proc_names):
+            # Retrieve the output
+            trial = self.trials[trial_name]
+            trial_proc_output_hash = trial.proc_hashes[proc_name]
+            trial_proc_output = self.get_data(trial_proc_output_hash)
+            # Place it into the output df
+            new_row_dict = {
+                "data": trial_proc_output,
+                "trial": trial_name,
+                "process": proc_name,
+            }
+            new_row = pd.DataFrame([new_row_dict])
+            outputs = pd.concat([outputs, new_row], ignore_index=True)
+
         return outputs
 
     def get_data(self, data_index):
