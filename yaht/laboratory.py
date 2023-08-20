@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import pandas as pd
 from yaht.cache_management import CacheManager
 from yaht.experiment import Experiment
 
@@ -20,14 +21,16 @@ class Laboratory:
 
     def export_experiment_results(self):
         """Get the results of every experiment and pass them to the experiment"""
-        results = {}
+        results = pd.DataFrame(columns=["data", "experiment", "trial", "process"])
         for exp_name in self.experiments:
-            results[exp_name] = self.experiments[exp_name].get_outputs()
+            exp_results = self.experiments[exp_name].get_outputs()
+            exp_results["experiment"] = exp_name
+            results = pd.concat([results, exp_results], ignore_index=True)
         self.data_exporter.export_data(results)
 
-    def set_data(self, key, value):
+    def set_data(self, key, value, metadata):
         data = {"data": value, "legend": str(value)}
-        self.cache_manager.send_data(key, data)
+        self.cache_manager.send_data(key, data, metadata)
 
     def get_data(self, key):
         return self.cache_manager.get_data(key)["data"]
