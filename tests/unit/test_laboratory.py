@@ -2,6 +2,7 @@
 import os
 import pytest
 import tempfile
+import pandas as pd
 from yaht.laboratory import Laboratory
 
 
@@ -20,6 +21,7 @@ class MockDataExporter:
 def cache_dir():
     new_dir = tempfile.mkdtemp()
     yield os.path.join(new_dir, "cache")
+    # shutil.rmtree(new_dir)
 
 
 # Override the get_process method
@@ -38,7 +40,7 @@ def base_lab_config(cache_dir):
         "cache_dir": cache_dir,
         "experiments": {
             "exp1": {
-                "inputs": ["input"],
+                "inputs": ["INPUT"],
                 "outputs": ["p1"],
                 "structure": {"p1": ["inputs.0"]},
             }
@@ -48,10 +50,20 @@ def base_lab_config(cache_dir):
 
 
 def test_base_config(mock_processes, base_lab_config):
+    """Test that running a simple config exports the correct data"""
     data_exporter = MockDataExporter()
     lab = Laboratory(base_lab_config, data_exporter)
 
     lab.run_experiments()
     lab.export_experiment_results()
 
-    assert data_exporter.data[0] == {"exp1": {"control": ["input_p1"]}}
+    # Output should be a dataframe
+    outputs = data_exporter.data[0]
+
+    expected_outputs = pd.DataFrame(columns=["data", "experiment", "trial", "process"])
+    expected_outputs["experiment"] = ["exp1"]
+    expected_outputs["trial"] = ["control"]
+    expected_outputs["process"] = ["p1"]
+    expected_outputs["data"] = ["INPUT_p1"]
+
+    assert outputs.equals(expected_outputs)
