@@ -3,6 +3,7 @@ import os
 import pytest
 import tempfile
 import pandas as pd
+from yaht.cache_management import CacheManager
 from yaht.laboratory import Laboratory
 
 
@@ -67,3 +68,48 @@ def test_base_config(mock_processes, base_lab_config):
     expected_outputs["data"] = ["INPUT_p1"]
 
     assert outputs.equals(expected_outputs)
+
+
+def test_reading_input_data_from_file(mock_processes, base_lab_config, cache_dir):
+    """
+    Test that we can write data to a file in the cache
+    and use it as input to the experiment
+    """
+    # Write some data to the cache
+    external_cache_manager = CacheManager(cache_dir)
+    external_cache_manager.send_data(
+        key="inputFile",
+        data="FILE_INPUT_DATA",
+        metadata={"filename": "inputFile"},
+    )
+
+    # Update the config to use the file as input
+    updated_config = base_lab_config
+    updated_config["experiments"]["exp1"]["inputs"] = ["file:inputFile"]
+
+    # Run the lab with the new config
+    data_exporter = MockDataExporter()
+    lab = Laboratory(updated_config, data_exporter)
+    lab.run_experiments()
+    lab.export_experiment_results()
+    outputs = data_exporter.data[0]
+
+    assert outputs["data"].values == ["FILE_INPUT_DATA_p1"]
+
+
+def test_multiple_experiments():
+    # Necessary?
+    pass
+
+
+def test_export_outputs_metadata():
+    """Test exporting the metadata for the laboratory's outputs"""
+
+
+def test_export_input_metadata():
+    # ??
+    pass
+
+
+def test_export_all_metadata():
+    pass
