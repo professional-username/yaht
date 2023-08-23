@@ -51,6 +51,7 @@ class CacheIndex:
 
         cursor = self.connection.cursor()
         cursor.execute(add_item_query)
+        self.connection.commit()
 
     def delete_item(self, key):
         """Delete an item from the index"""
@@ -63,6 +64,7 @@ class CacheIndex:
         )
         cursor = self.connection.cursor()
         cursor.execute(delete_item_query)
+        self.connection.commit()
 
     def check_item_exists(self, key):
         """Check whether a key exists in the db"""
