@@ -34,7 +34,7 @@ class CacheIndex:
         if "filename" in metadata:
             filename = metadata["filename"]
         elif metadata["source"]:
-            filename = os.path.join(self.cache_dir, metadata["source"] + key[:5])
+            filename = metadata["source"] + key[:5]
         else:
             filename = key
 
@@ -113,6 +113,7 @@ class CacheManager:
     def __init__(self, cache_dir):
         """Connect to the cache, initialize it if necessary"""
         self.cache_index = CacheIndex(cache_dir)
+        self.cache_dir = cache_dir
 
     def send_data(self, key, data, metadata={}):
         """Save the data and record its metadata in the cache index"""
@@ -121,13 +122,15 @@ class CacheManager:
             self.cache_index.add_item(key, metadata)
         # Write the data to the relevant filename
         filename = self.cache_index.get_item_metadata(key, "filename")
-        with open(filename, "wb") as f:
+        path = os.path.join(self.cache_dir, filename)
+        with open(path, "wb") as f:
             pickle.dump(data, f)
 
     def get_data(self, key):
         """Load the data from the cache by the given key"""
         filename = self.cache_index.get_item_metadata(key, "filename")
-        with open(filename, "rb") as f:
+        path = os.path.join(self.cache_dir, filename)
+        with open(path, "rb") as f:
             data = pickle.load(f)
         return data
 
@@ -146,5 +149,6 @@ class CacheManager:
             return
 
         filename = self.cache_index.get_item_metadata(key, "filename")
-        os.remove(filename)
+        path = os.path.join(self.cache_dir, filename)
+        os.remove(path)
         self.cache_index.delete_item(key)
