@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import pickle
 import shutil
 import pytest
 import tempfile
@@ -113,3 +114,24 @@ def test_check_cache(cache_dir):
     # Delete the data and check that it no longer exists
     cache.delete_data(data_hash)
     assert cache.check_data(data_hash) == False
+
+
+def test_add_file(cache_dir):
+    """Test adding an existing file of data to the cache"""
+    # Create some fake data in a different fake folder
+    fake_dir = tempfile.mkdtemp()
+    data_fname = os.path.join(fake_dir, "mock_data.pickle")
+    data = "mockData"
+    with open(data_fname, "wb") as f:
+        pickle.dump(data, f)
+
+    cache = CacheManager(cache_dir)
+    cache.add_file(data_fname)
+
+    # Check that the file now exists in the cache
+    expected_cached_file = os.path.join(cache_dir, "mock_data.pickle")
+    assert os.path.exists(expected_cached_file)
+    # Attempt to retrieve the data by filename
+    data_key = cache.get_keys_by_metadata("mock_data.pickle", "filename")[0]
+    retrieved_data = cache.get_data(data_key)
+    assert retrieved_data == data

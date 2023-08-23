@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import shutil
 import pickle
 import sqlite3
 
@@ -125,6 +126,22 @@ class CacheManager:
         path = os.path.join(self.cache_dir, filename)
         with open(path, "wb") as f:
             pickle.dump(data, f)
+
+    def add_file(self, source_file):
+        """Add an external file to the cache"""
+        # Load the data, then write it to the cache TODO This might be inefficient
+        # with open(filename, "rb") as f:
+        #     data = pickle.load(f)
+        # Copy the file to the cache
+        filename = source_file.split("/")[-1]
+        cache_file = os.path.join(self.cache_dir, filename)
+        shutil.copy(source_file, cache_file)
+        # When adding an existing file, use the filename as the hash key
+        metadata = {
+            "filename": filename,
+            "source": "file://" + source_file,
+        }
+        self.cache_index.add_item(filename, metadata)
 
     def get_data(self, key):
         """Load the data from the cache by the given key"""
