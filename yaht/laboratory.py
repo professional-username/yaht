@@ -29,7 +29,7 @@ class Laboratory:
         self.data_exporter.export_data(results)
 
     def set_data(self, key, value, metadata):
-        data = {"data": value, "legend": str(value)}
+        data = {"data": value, "metadata": metadata}
         self.cache_manager.send_data(key, data, metadata)
 
     def get_data(self, key):
@@ -37,3 +37,9 @@ class Laboratory:
 
     def check_data(self, key):
         return self.cache_manager.cache_index.check_item_exists(key)
+
+    def get_data_by_fname(self, fname):
+        """Get some data from the cache based on the given fname"""
+        key = self.cache_manager.get_keys_by_metadata(fname, "filename")[0]
+        data = self.cache_manager.get_data(key)
+        return data
