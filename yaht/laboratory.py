@@ -28,12 +28,12 @@ class Laboratory:
             results = pd.concat([results, exp_results], ignore_index=True)
         self.data_exporter.export_data(results)
 
-    def set_data(self, key, value, metadata):
-        data = {"data": value, "metadata": metadata}
+    def set_data(self, key, data, metadata):
         self.cache_manager.send_data(key, data, metadata)
 
     def get_data(self, key):
-        return self.cache_manager.get_data(key)["data"]
+        data = self.cache_manager.get_data(key)
+        return data
 
     def check_data(self, key):
         return self.cache_manager.cache_index.check_item_exists(key)
