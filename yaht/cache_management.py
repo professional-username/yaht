@@ -34,7 +34,7 @@ class CacheIndex:
         if "filename" in metadata:
             filename = metadata["filename"]
         elif metadata["source"]:
-            filename = metadata["source"] + key[:5]
+            filename = os.path.join(self.cache_dir, metadata["source"] + key[:5])
         else:
             filename = key
 
