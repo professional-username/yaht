@@ -58,6 +58,18 @@ def test_check_item_exists(cache_dir):
     assert item_exists
 
 
+def test_connect_to_exising_index(cache_dir):
+    """Create an index and connect to it twice"""
+    # Create the index and add an item
+    index = CacheIndex(cache_dir)
+    index.add_item("someHashKey")
+
+    # Connect to the index again and check the item exists
+    new_index = CacheIndex(cache_dir)
+    item_exists = new_index.check_item_exists("someHashKey")
+    assert item_exists
+
+
 def test_delete_item(cache_dir):
     """Test that after deleting an item it no longer exists"""
     index = CacheIndex(cache_dir)
