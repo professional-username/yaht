@@ -135,3 +135,18 @@ def test_add_file(cache_dir):
     data_key = cache.get_keys_by_metadata("mock_data.pickle", "filename")[0]
     retrieved_data = cache.get_data(data_key)
     assert retrieved_data == data
+
+
+def test_connect_to_existing_cache(cache_dir):
+    """Test that we can connect to an existing cache successfully"""
+    data_hash = "someKey"
+    test_data = "someTestData"
+
+    # Create a cache and send some data
+    cache = CacheManager(cache_dir)
+    cache.send_data(data_hash, test_data)
+
+    # Create a new cache in the same directory and retrieve it
+    new_cache = CacheManager(cache_dir)
+    retrieved_data = new_cache.get_data(data_hash)
+    assert retrieved_data == test_data
