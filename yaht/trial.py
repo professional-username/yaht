@@ -12,15 +12,16 @@ class Trial:
 
         params = config["parameters"] if "parameters" in config else {}
         # Override processes if given in functions
-        structure = self.override_structure(config["structure"], params)
+        structure = override_structure(config["structure"], params)
 
         # Convert the config to a simpler dependency structure
-        self.proc_dependencies = self.get_proc_dependencies(structure)
-        self.proc_names = self.get_organized_proc_names(self.proc_dependencies)
+        self.proc_dependencies = get_proc_dependencies(structure)
+        self.proc_names = get_organized_proc_names(self.proc_dependencies)
         # Get the function for each process
-        self.proc_functions = self.get_proc_functions(structure)
+        self.proc_functions = get_proc_functions(structure)
         # Extract the parameters relevant to each process
-        self.proc_params = {p: self.get_proc_params(p, params) for p in self.proc_names}
+        self.proc_params = get_proc_params(self.proc_functions, params)
+        #
         # Hash each process based on its params and dependencies
         self.proc_hashes = self.get_proc_hashes(self.proc_names)
 
@@ -70,27 +71,6 @@ class Trial:
 
         return data
 
-    def get_proc_functions(self, structure):
-        """Get the function relevant to each process 'name'"""
-        proc_functions = {}
-        for name in structure:
-            # If the name is of the form "x <- y", the name is x, the process is y
-            name = name.split("<-")
-            proc_name = name[0].strip()
-            function = name[-1].strip()
-            proc_functions[proc_name] = get_process(function)
-
-        return proc_functions
-
-    def get_proc_dependencies(self, structure):
-        """Simplify the given structure into a dependency dict"""
-        simplified_structure = {}
-        for proc_name, proc_deps in structure.items():
-            if "<-" in proc_name:
-                proc_name = proc_name.split("<-")[0].strip()
-            simplified_structure[proc_name] = proc_deps
-        return simplified_structure
-
     def get_proc_hashes(self, proc_names):
         """
         Generate a unique hash for each process
@@ -122,9 +102,34 @@ class Trial:
 
         return proc_hashes
 
-    def get_proc_params(self, proc_name, all_params):
-        """Return a dictionary of the parameters relevant to the given process"""
-        proc_function = self.proc_functions[proc_name]
+
+def get_proc_functions(structure):
+    """Get the function relevant to each process 'name'"""
+    proc_functions = {}
+    for name in structure:
+        # If the name is of the form "x <- y", the name is x, the process is y
+        name = name.split("<-")
+        proc_name = name[0].strip()
+        function = name[-1].strip()
+        proc_functions[proc_name] = get_process(function)
+
+    return proc_functions
+
+
+def get_proc_dependencies(structure):
+    """Simplify the given structure into a dependency dict"""
+    simplified_structure = {}
+    for proc_name, proc_deps in structure.items():
+        if "<-" in proc_name:
+            proc_name = proc_name.split("<-")[0].strip()
+        simplified_structure[proc_name] = proc_deps
+    return simplified_structure
+
+
+def get_proc_params(proc_functions, all_params):
+    """Get the relevant parameters for each process in proc_functions"""
+    all_proc_params = {}
+    for proc_name, proc_function in proc_functions.items():
         proc_params = [
             param
             for param in inspect.signature(proc_function).parameters
@@ -138,43 +143,46 @@ class Trial:
             if "%s.%s" % (proc_name, p) in all_params
         }
         relevant_params |= override_params
+        all_proc_params[proc_name] = relevant_params
 
-        return relevant_params
+    return all_proc_params
 
-    def get_organized_proc_names(self, structure):
-        """Organize processes and their dependencies with networkx"""
-        proc_graph = nx.DiGraph()
-        for proc, deps in structure.items():
-            deps = [d.split(".")[0] for d in deps]  # Split off "sub-dependencies"
-            for d in deps:
-                proc_graph.add_edge(proc, d)
-        # Use a topological sort to figure out the order procs must be run in
-        sorted_procs = list(nx.topological_sort(proc_graph))
-        sorted_procs.reverse()
-        # Remove the "inputs" node, as it is not a process
-        if "inputs" in sorted_procs:
-            sorted_procs.remove("inputs")
 
-        return sorted_procs
+def get_organized_proc_names(structure):
+    """Organize processes and their dependencies with networkx"""
+    proc_graph = nx.DiGraph()
+    for proc, deps in structure.items():
+        deps = [d.split(".")[0] for d in deps]  # Split off "sub-dependencies"
+        for d in deps:
+            proc_graph.add_edge(proc, d)
+    # Use a topological sort to figure out the order procs must be run in
+    sorted_procs = list(nx.topological_sort(proc_graph))
+    sorted_procs.reverse()
+    # Remove the "inputs" node, as it is not a process
+    if "inputs" in sorted_procs:
+        sorted_procs.remove("inputs")
 
-    def override_structure(self, structure, params):
-        """Override any parts of the structure that are specified by parameters"""
-        override_procs = {
-            p.split("<-")[0].strip(): [p, params[p]] for p in params if "<-" in p
-        }
-        overriden_procs = []
-        for proc_name, override_proc in itertools.product(
-            structure.keys(), override_procs.keys()
-        ):
-            if proc_name.startswith(override_proc):
-                overriden_procs.append(proc_name)
-                proc_name = override_procs[override_proc][0]
-                proc_deps = override_procs[override_proc][1]
-                structure[proc_name] = proc_deps
+    return sorted_procs
 
-        # Delete the procs that were overriden from the original structure
-        for p in overriden_procs:
-            print(p)
-            del structure[p]
 
-        return structure
+def override_structure(structure, params):
+    """Override any parts of the structure that are specified by parameters"""
+    override_procs = {
+        p.split("<-")[0].strip(): [p, params[p]] for p in params if "<-" in p
+    }
+    overriden_procs = []
+    for proc_name, override_proc in itertools.product(
+        structure.keys(), override_procs.keys()
+    ):
+        if proc_name.startswith(override_proc):
+            overriden_procs.append(proc_name)
+            proc_name = override_procs[override_proc][0]
+            proc_deps = override_procs[override_proc][1]
+            structure[proc_name] = proc_deps
+
+    # Delete the procs that were overriden from the original structure
+    for p in overriden_procs:
+        print(p)
+        del structure[p]
+
+    return structure
