@@ -119,6 +119,7 @@ def generate_trial_structure(config):
     proc_functions = get_proc_functions(structure)
     # Extract the parameters relevant to each process
     proc_params = get_proc_params(proc_functions, params)
+
     # Generate the hashes for each process
     proc_hashes = get_proc_hashes(
         proc_names, proc_params, proc_dependencies, input_hashes
@@ -130,7 +131,7 @@ def generate_trial_structure(config):
         {
             "hash": proc_hashes,
             "order": proc_order,
-            "parameters": proc_params,
+            "params": proc_params,
             "deps": proc_dependencies,
             "dep_hashes": dep_hashes,
             "function": proc_functions,
@@ -221,7 +222,6 @@ def override_structure(structure, params):
 
     # Delete the procs that were overriden from the original structure
     for p in overriden_procs:
-        print(p)
         del structure[p]
 
     return structure
@@ -275,4 +275,5 @@ def gen_dependency_hashes(proc_dependencies, proc_hashes, input_hashes):
             # Save it to the dictionary
             # TODO: Combine with get_proc_hashes?
             dep_hashes[proc].append(".".join(split_dep))
+
     return dep_hashes
