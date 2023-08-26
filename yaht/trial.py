@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import inspect
 import itertools
+import pandas as pd
 import networkx as nx
 from hashlib import sha256
 from yaht.processes import get_process
@@ -103,6 +104,44 @@ class Trial:
         return proc_hashes
 
 
+def generate_trial_structure(config):
+    """Generate a structure dataframe with a row for each process"""
+    # Extract the different parts of the config
+    params = config["parameters"] if "parameters" in config else {}
+    input_hashes = config["inputs"] if "inputs" in config else []
+    structure = override_structure(config["structure"], params)
+
+    # Convert the config to a simpler dependency structure
+    proc_dependencies = get_proc_dependencies(structure)
+    proc_names = get_organized_proc_names(proc_dependencies)
+    proc_order = {proc_names[i]: i for i in range(len(proc_names))}
+    # Get the function for each process
+    proc_functions = get_proc_functions(structure)
+    # Extract the parameters relevant to each process
+    proc_params = get_proc_params(proc_functions, params)
+    # Generate the hashes for each process
+    proc_hashes = get_proc_hashes(
+        proc_names, proc_params, proc_dependencies, input_hashes
+    )
+    dep_hashes = gen_dependency_hashes(proc_dependencies, proc_hashes, input_hashes)
+
+    # Put all the parameters into a df
+    structure_df = pd.DataFrame.from_dict(
+        {
+            "hash": proc_hashes,
+            "order": proc_order,
+            "parameters": proc_params,
+            "deps": proc_dependencies,
+            "dep_hashes": dep_hashes,
+            "function": proc_functions,
+        }
+    )
+    structure_df.index.names = ["name"]
+    structure_df = structure_df.reset_index()
+
+    return structure_df
+
+
 def get_proc_functions(structure):
     """Get the function relevant to each process 'name'"""
     proc_functions = {}
@@ -186,3 +225,54 @@ def override_structure(structure, params):
         del structure[p]
 
     return structure
+
+
+def get_proc_hashes(proc_names, proc_params, proc_dependencies, input_hashes):
+    """
+    Generate a unique hash for each process
+    based on a its name, parameters and dependencies
+    """
+    proc_hashes = {}
+
+    # Must iterate over the procs in order so dependencies are hashed first
+    for proc in proc_names:
+        # Hash each proc and its dependencies
+        proc_hash = sha256(proc.encode())
+        # Add parameter hashes
+        for param_item in proc_params[proc].items():
+            proc_hash.update(str(param_item).encode())
+        # Add dependency hashes
+        for dep in proc_dependencies[proc]:
+            split_dep = dep.split(".")
+            # The dep value is either either the dep hash of the hasehd input in the case of input
+            if split_dep[0] == "inputs":
+                dep_value = input_hashes[int(split_dep[1])]
+            else:
+                dep_value = proc_hashes[split_dep[0]]
+            # Hash the dep and update the proc hash
+            dep_hash = str(dep_value).encode()
+            proc_hash.update(dep_hash)
+        proc_hashes[proc] = proc_hash.hexdigest()
+
+    return proc_hashes
+
+
+def gen_dependency_hashes(proc_dependencies, proc_hashes, input_hashes):
+    """Turn every dependency into the appropriate hash"""
+    dep_hashes = {}
+    for proc in proc_dependencies:
+        dep_hashes[proc] = []
+        for dep in proc_dependencies[proc]:
+            # Get the dependency hash
+            split_dep = dep.split(".")
+            if split_dep[0] == "inputs":
+                dep_hash = input_hashes[int(split_dep[1])]
+                split_dep = split_dep[:1]
+            else:
+                dep_hash = proc_hashes[split_dep[0]]
+            split_dep[0] = dep_hash
+
+            # Save it to the dictionary
+            # TODO: Combine with get_proc_hashes?
+            dep_hashes[proc].append(".".join(split_dep))
+    return dep_hashes
