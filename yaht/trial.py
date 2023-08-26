@@ -108,7 +108,6 @@ def generate_trial_structure(config):
     """Generate a structure dataframe with a row for each process"""
     # Extract the different parts of the config
     params = config["parameters"] if "parameters" in config else {}
-    input_hashes = config["inputs"] if "inputs" in config else []
     structure = override_structure(config["structure"], params)
 
     # Convert the config to a simpler dependency structure
@@ -120,23 +119,29 @@ def generate_trial_structure(config):
     # Extract the parameters relevant to each process
     proc_params = get_proc_params(proc_functions, params)
 
-    # Generate the hashes for each process
-    proc_hashes = get_proc_hashes(
-        proc_names, proc_params, proc_dependencies, input_hashes
-    )
-    dep_hashes = gen_dependency_hashes(proc_dependencies, proc_hashes, input_hashes)
+    # # Generate the hashes for each process
+    # proc_hashes = get_proc_hashes(
+    #     proc_names, proc_params, proc_dependencies, input_hashes
+    # )
+    # dep_hashes = gen_dependency_hashes(proc_dependencies, proc_hashes, input_hashes)
 
     # Put all the parameters into a df
     structure_df = pd.DataFrame.from_dict(
         {
-            "hash": proc_hashes,
+            # "hash": proc_hashes,
+            "function": proc_functions,
             "order": proc_order,
             "params": proc_params,
             "deps": proc_dependencies,
-            "dep_hashes": dep_hashes,
-            "function": proc_functions,
+            # "dep_hashes": dep_hashes,
         }
     )
+
+    # Generate hashes for the processes and their dependencies
+    input_hashes = config["inputs"] if "inputs" in config else []
+    structure_df = gen_structure_hashes(structure_df, input_hashes)
+
+    # Pull the proc names the structure is indexed by into their own column
     structure_df.index.names = ["name"]
     structure_df = structure_df.reset_index()
 
@@ -277,3 +282,51 @@ def gen_dependency_hashes(proc_dependencies, proc_hashes, input_hashes):
             dep_hashes[proc].append(".".join(split_dep))
 
     return dep_hashes
+
+
+def gen_structure_hashes(structure_df, input_hashes):
+    """
+    Hash the dependencies of each process,
+    and then hash the processes themselves
+    """
+    # Order the structure based on the order the processes must be run in
+    structure_df.sort_values("order", inplace=True)
+    hash_df = pd.DataFrame(columns=["hash", "dep_hashes"])
+
+    for process in structure_df.iterrows():
+        # The process function, params and hashes of dependencies
+        # are used to generate a process' hash
+        proc_name = process[0]
+        proc_deps = process[1]["deps"]
+        proc_params = process[1]["params"]
+        proc_function = process[1]["function"]
+
+        # Store the hash of a process, as well as the hashes of its dependencies
+        hash_df.loc[proc_name, "dep_hashes"] = []
+
+        proc_hash = sha256(str(proc_function).encode())
+        for param_item in proc_params.items():
+            proc_hash.update(str(param_item).encode())
+        for dep in proc_deps:
+            [dep_name, *dep_index] = dep.split(".")
+            dep_index = int(dep_index[0]) if dep_index else None
+            # Input hashes have to be retrieved from their own dictionary
+            # TODO is there a better way?
+            if dep_name == "inputs":
+                # If loading an input hash, get it from the given dict
+                dep_hash = input_hashes[dep_index]
+            else:
+                # Otherwise look for a previously claculated hash,
+                dep_hash = hash_df.loc[dep_name, "hash"]
+                # and include the index if it exists
+                dep_hash += "." + str(dep_index) if dep_index != None else ""
+            # Save the dependency hashes as well as adding them to the process hash
+            hash_df.loc[proc_name, "dep_hashes"].append(dep_hash)
+            proc_hash.update(dep_hash.encode())
+
+        # Save the assembled hash
+        hash_df.loc[proc_name, "hash"] = proc_hash.hexdigest()
+
+    # Return the combined df
+    structure_df = pd.concat([structure_df, hash_df], axis=1)
+    return structure_df
