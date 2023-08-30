@@ -50,36 +50,3 @@ class Laboratory:
     # for exp_name in self.experiments:
     #     output_keys.append(self.experiments[exp_name])
     # metadata =
-
-
-def generate_laboratory_structure(config):
-    """Convert a nested dictionary config into a dataframe structure"""
-    laboratory_structure = pd.DataFrame()
-
-    # Generate every experiment structure
-    input_files = config["input_files"] if "input_files" in config else {}
-    experiment_configs = config["experiments"]
-    for exp_name, exp_config in experiment_configs.items():
-        # Substitute in the input hashes for each experiment TODO: Extract to seperate method?
-        exp_inputs = exp_config["inputs"]
-        input_hashes = []
-        for exp_input in exp_inputs:
-            input_type, input_name = exp_input.split(":")
-            if input_type == "file":
-                input_hash = input_files[input_name]
-            elif input_type == "hash":
-                input_hash = input_name
-            else:
-                raise ValueError("Invalid input type '%s'" % input_type)
-            input_hashes.append(input_hash)
-        # Generate the experimennt structure
-        exp_config["inputs"] = input_hashes
-        exp_structure = generate_experiment_structure(exp_config)
-        # Set other values for the experiment
-        exp_structure["experiment"] = exp_name
-        # Append to the global lab structure
-        laboratory_structure = pd.concat(
-            [laboratory_structure, exp_structure], ignore_index=True
-        )
-
-    return laboratory_structure

@@ -3,44 +3,6 @@ from itertools import product
 from yaht.trial import Trial, generate_trial_structure
 
 
-def generate_experiment_structure(config):
-    """
-    Generate the structure of an experiment given a config
-    in the form of a pandas dataframe
-    """
-    experiment_structure = pd.DataFrame()
-
-    # Assemble the parameters for each trial
-    global_params = config["parameters"] if "parameters" in config else {}
-    trial_configs = config["trials"] if "trials" in config else {}
-    trial_configs["control"] = {}
-    for trial in trial_configs:
-        trial_configs[trial] = global_params | trial_configs[trial]
-
-    # Generate the config for each trial
-    input_hashes = config["inputs"]
-    trial_process_structure = config["structure"]
-    for trial_name, trial_params in trial_configs.items():
-        trial_config = {
-            "inputs": input_hashes,
-            "structure": trial_process_structure,
-            "parameters": trial_params,
-        }
-        trial_structure = generate_trial_structure(trial_config)
-        trial_structure["trial"] = trial_name  # Set the trial name of each process
-        experiment_structure = pd.concat(
-            [experiment_structure, trial_structure], ignore_index=True
-        )
-
-    # Set the output flag for each process
-    output_procs = config["outputs"]
-    experiment_structure["output"] = experiment_structure["name"].apply(
-        lambda x: x in output_procs
-    )
-
-    return experiment_structure
-
-
 class Experiment:
     def __init__(self, config, parent_laboratory):
         self.input_names = config["inputs"]

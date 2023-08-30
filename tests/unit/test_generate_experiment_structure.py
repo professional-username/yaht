@@ -2,7 +2,7 @@
 import pytest
 import pandas as pd
 from yaht.processes import register_process
-from yaht.experiment import generate_experiment_structure
+from yaht.structure import generate_experiment_structure
 
 
 @pytest.fixture
@@ -10,7 +10,7 @@ def mock_all_procs(mocker):
     def mock_get_process(proc_name):
         return lambda x: "%s_%s" % (x, proc_name)
 
-    mocker.patch("yaht.trial.get_process", mock_get_process)
+    mocker.patch("yaht.structure.get_process", mock_get_process)
 
 
 @pytest.fixture
