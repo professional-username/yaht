@@ -38,7 +38,7 @@ def test_control_only_trial(mock_all_procs):
     structure = generate_experiment_structure(config)
     structure.index = structure["name"]  # For easier testing
 
-    # There should be a single row for a single process
+    # There should be two rows for two processes
     assert type(structure) == pd.DataFrame
     assert len(structure) == 2
     # These are columns specific to the experiment config
