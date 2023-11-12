@@ -35,9 +35,12 @@ def proc_with_param():
 def test_single_process_structure(simple_proc):
     """Test the most basic structure"""
     config = {
-        "inputs": ["INPUT_HASH"],
+        "source_hashes": {"source_1": "INPUT_HASH"},
         "structure": {
-            "foobar": ["inputs.0"],
+            "foobar": {
+                "sources": ["source_1"],
+                "results": ["foobar"],
+            },
         },
     }
 
@@ -46,27 +49,47 @@ def test_single_process_structure(simple_proc):
     # There should be a single row for a single process
     assert len(structure) == 1
     # The hash just has to exist
-    hash_key = structure["hash"].item()
+    hash_key = structure["result_hashes"].item()[0]
     # The other values should be as follows:
     assert structure.iloc[0].to_dict() == {
-        "hash": hash_key,
-        "name": "foobar",
+        # Essential for processing
         "order": 0,
         "function": simple_proc,
         "params": {},
-        "deps": ["inputs.0"],
-        "dep_hashes": ["INPUT_HASH"],
+        "source_hashes": ["INPUT_HASH"],
+        "result_hashes": [hash_key],
+        # Metadata
+        "name": "foobar",
+        "source_names": ["source_1"],
+        "result_names": ["foobar"],
     }
 
 
 def test_process_web(mock_all_procs):
-    """Test a multi-process web config"""
+    """
+    Test a multi-process web config,
+    with multiple sources or results for different processes
+    """
     config = {
-        "inputs": ["INPUT_ONE", "INPUT_TWO"],
+        "source_hashes": {
+            "source_1": "INPUT_ONE",
+            "source_2": "INPUT_TWO",
+        },
         "structure": {
-            "foo": ["foobar.1", "bar"],
-            "bar": ["foobar.0"],
-            "foobar": ["inputs.1"],
+            "foo": {
+                "sources": ["source_2", "bar.one"],
+                # Not specifying results should imply a single result
+                # of the same name as the process
+                # "results": ["foo"],
+            },
+            "bar": {
+                "sources": ["source_1"],
+                "results": ["bar.one", "bar.two"],
+            },
+            "foobar": {
+                "sources": ["foo", "bar.two"],
+                "results": ["foobar"],
+            },
         },
     }
 
@@ -75,25 +98,33 @@ def test_process_web(mock_all_procs):
     structure.index = structure["name"]  # For easier testing
 
     # Check that the hashes match up correctly
-    assert structure.loc["foo", "deps"] == ["foobar.1", "bar"]
-    assert structure.loc["foo", "dep_hashes"] == [
-        structure.loc["foobar", "hash"] + ".1",
-        structure.loc["bar", "hash"],
+    assert structure.loc["foobar", "source_names"] == ["foo", "bar.two"]
+    assert structure.loc["foobar", "source_hashes"] == [
+        structure.loc["foo", "result_hashes"][0],
+        structure.loc["bar", "result_hashes"][1],
     ]
-    assert structure.loc["foobar", "dep_hashes"] == ["INPUT_TWO"]
+    assert structure.loc["bar", "source_hashes"] == ["INPUT_ONE"]
     # Check that the order is correct
-    assert structure.loc["foobar", "order"] == 0
-    assert structure.loc["bar", "order"] == 1
-    assert structure.loc["foo", "order"] == 2
+    assert structure.loc["bar", "order"] == 0
+    assert structure.loc["foo", "order"] == 1
+    assert structure.loc["foobar", "order"] == 2
 
 
 def test_overwrite_methods(simple_proc):
     """Test overwriting the method in a function web"""
     config = {
-        "inputs": ["INPUT_HASH"],
+        "source_hashes": {"main_source": "INPUT_HASH"},
         "structure": {
-            "f1 <- foobar": ["inputs.0"],
-            "f2 <- foobar": ["f1"],
+            "f1": {
+                "sources": ["main_source"],
+                # The function name is implicitly the same as the process name,
+                # But can be specified to be different
+                "function": "foobar",
+            },
+            "f2": {
+                "sources": ["f1"],
+                "function": "foobar",
+            },
         },
     }
 
@@ -110,9 +141,11 @@ def test_set_params(proc_with_param):
     """Test passing parameters to some processes"""
 
     config = {
-        "inputs": ["INPUT_HASH"],
+        "source_hashes": {"main_source": "INPUT_HASH"},
         "structure": {
-            "add_value": ["inputs.0"],
+            "add_value": {
+                "sources": ["main_source"],
+            },
         },
         "parameters": {
             "value": 2,
@@ -130,9 +163,11 @@ def test_set_params(proc_with_param):
 def test_setting_specific_process_parameters(proc_with_param):
     """Test setting parameters for only specific processes"""
     config = {
-        "inputs": ["INPUT_HASH"],
+        "source_hashes": {"main_source": "INPUT_HASH"},
         "structure": {
-            "add_value": ["inputs.0"],
+            "add_value": {
+                "sources": ["main_source"],
+            }
         },
         "parameters": {
             "value": "WRONG",
@@ -148,17 +183,23 @@ def test_setting_specific_process_parameters(proc_with_param):
     assert structure.loc["add_value", "params"] == {"value": "CORRECT"}
 
 
-def test_setting_methods_as_parameters(simple_proc):
+def test_setting_structure_as_parameters(simple_proc):
     """Test replacing structural components with parameters"""
     config = {
-        "inputs": ["INPUT_HASH"],
+        "source_hashes": {"main_source": "INPUT_HASH"},
         "structure": {
-            "f1": ["inputs.0"],
-            "foobar": ["fake_input"],
+            "f1": {
+                "sources": ["main_source"],
+                "results": ["fake_result_one", "fake_result_two"],
+            },
+            "foobar": {
+                "sources": ["fake_input"],
+            },
         },
         "parameters": {
-            "f1 <- foobar": ["inputs.0"],
-            "foobar <- foobar": ["f1"],
+            "foobar.SOURCES": ["f1_result"],
+            "f1.FUNCTION": "foobar",
+            "f1.RESULTS": ["f1_result"],
         },
     }
 
@@ -169,6 +210,9 @@ def test_setting_methods_as_parameters(simple_proc):
     # Check that both the functions are correct
     assert structure.loc["f1", "function"] == simple_proc
     assert structure.loc["foobar", "function"] == simple_proc
-    # Check that the inputs are overridden correctly
-    assert structure.loc["foobar", "deps"] == ["f1"]
-    assert structure.loc["foobar", "dep_hashes"] == [structure.loc["f1", "hash"]]
+    # Check that the sources and results are overridden correctly
+    assert structure.loc["foobar", "source_names"] == ["f1_result"]
+    assert structure.loc["f1", "result_names"] == ["f1_result"]
+    assert structure.loc["foobar", "source_hashes"] == [
+        structure.loc["f1", "result_hashes"][0]
+    ]
