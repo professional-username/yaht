@@ -81,39 +81,34 @@ def generate_experiment_structure(config):
 def generate_trial_structure(config):
     """Generate a structure dataframe with a row for each process"""
     # Extract the different parts of the config
-    params = config["parameters"] if "parameters" in config else {}
+    params = config.get("parameters", {})
     structure = override_structure(config["structure"], params)
 
     # Convert the config to a simpler dependency structure
-    proc_dependencies = get_proc_dependencies(structure)
-    proc_names = get_organized_proc_names(proc_dependencies)
+    proc_sources = get_proc_source_names(structure)
+    proc_results = get_proc_result_names(structure)
+    # And extract the order procs should be run it
+    proc_names = get_organized_proc_names(proc_sources, proc_results)
     proc_order = {proc_names[i]: i for i in range(len(proc_names))}
     # Get the function for each process
     proc_functions = get_proc_functions(structure)
     # Extract the parameters relevant to each process
     proc_params = get_proc_params(proc_functions, params)
 
-    # # Generate the hashes for each process
-    # proc_hashes = get_proc_hashes(
-    #     proc_names, proc_params, proc_dependencies, input_hashes
-    # )
-    # dep_hashes = gen_dependency_hashes(proc_dependencies, proc_hashes, input_hashes)
-
     # Put all the parameters into a df
     structure_df = pd.DataFrame.from_dict(
         {
-            # "hash": proc_hashes,
             "function": proc_functions,
             "order": proc_order,
             "params": proc_params,
-            "deps": proc_dependencies,
-            # "dep_hashes": dep_hashes,
+            "source_names": proc_sources,
+            "result_names": proc_results,
         }
     )
 
     # Generate hashes for the processes and their dependencies
-    input_hashes = config["inputs"] if "inputs" in config else []
-    structure_df = gen_structure_hashes(structure_df, input_hashes)
+    source_hashes = config.get("source_hashes", {})
+    structure_df = gen_structure_hashes(structure_df, source_hashes)
 
     # Pull the proc names the structure is indexed by into their own column
     structure_df.index.names = ["name"]
@@ -125,23 +120,29 @@ def generate_trial_structure(config):
 def get_proc_functions(structure):
     """Get the function relevant to each process 'name'"""
     proc_functions = {}
-    for name in structure:
-        # If the name is of the form "x <- y", the name is x, the process is y
-        name = name.split("<-")
-        proc_name = name[0].strip()
-        function = name[-1].strip()
-        proc_functions[proc_name] = get_process(function)
+    for proc_name, proc_config in structure.items():
+        # If the function isn't specified, assume it's the same as the proc_name
+        function_name = proc_config.get("function", proc_name)
+        proc_functions[proc_name] = get_process(function_name)
 
     return proc_functions
 
 
-def get_proc_dependencies(structure):
+def get_proc_source_names(structure):
     """Simplify the given structure into a dependency dict"""
     simplified_structure = {}
-    for proc_name, proc_deps in structure.items():
-        if "<-" in proc_name:
-            proc_name = proc_name.split("<-")[0].strip()
-        simplified_structure[proc_name] = proc_deps
+    for proc_name, proc_config in structure.items():
+        simplified_structure[proc_name] = proc_config.get("sources")
+    return simplified_structure
+
+
+def get_proc_result_names(structure):
+    """Extract the result names for each process"""
+    simplified_structure = {}
+    for proc_name, proc_config in structure.items():
+        # If the results aren't specified,
+        # assume it's a single one with the same name as the function
+        simplified_structure[proc_name] = proc_config.get("results", [proc_name])
     return simplified_structure
 
 
@@ -167,139 +168,90 @@ def get_proc_params(proc_functions, all_params):
     return all_proc_params
 
 
-def get_organized_proc_names(structure):
+def get_organized_proc_names(structure, proc_results):
     """Organize processes and their dependencies with networkx"""
     proc_graph = nx.DiGraph()
-    for proc, deps in structure.items():
-        deps = [d.split(".")[0] for d in deps]  # Split off "sub-dependencies"
-        for d in deps:
-            proc_graph.add_edge(proc, d)
+    for proc_name, proc_sources in structure.items():
+        # Find the processes the proc_sources refer to; e.g. foo.model should find foo
+        proc_source_procs = []
+        for source_name in proc_sources:
+            source_proc = next(
+                (
+                    proc
+                    for proc, results in proc_results.items()
+                    if source_name in results
+                ),
+                "INPUT",
+            )
+            proc_source_procs.append(source_proc)
+        # Organize into a process graph
+        for source_proc in proc_source_procs:
+            proc_graph.add_edge(proc_name, source_proc)
     # Use a topological sort to figure out the order procs must be run in
     sorted_procs = list(nx.topological_sort(proc_graph))
     sorted_procs.reverse()
     # Remove the "inputs" node, as it is not a process
-    if "inputs" in sorted_procs:
-        sorted_procs.remove("inputs")
+    if "INPUT" in sorted_procs:
+        sorted_procs.remove("INPUT")
 
     return sorted_procs
 
 
-def override_structure(structure, params):
+def override_structure(structure, parameters):
     """Override any parts of the structure that are specified by parameters"""
-    override_procs = {
-        p.split("<-")[0].strip(): [p, params[p]] for p in params if "<-" in p
-    }
-    overriden_procs = []
-    for proc_name, override_proc in itertools.product(
-        structure.keys(), override_procs.keys()
-    ):
-        if proc_name.startswith(override_proc):
-            overriden_procs.append(proc_name)
-            proc_name = override_procs[override_proc][0]
-            proc_deps = override_procs[override_proc][1]
-            structure[proc_name] = proc_deps
-
-    # Delete the procs that were overriden from the original structure
-    for p in overriden_procs:
-        del structure[p]
+    for param in parameters:
+        if "." not in param:
+            continue
+        proc_name, param_name = param.split(".", 1)
+        match param_name:
+            case "SOURCES":
+                struct_component = "sources"
+            case "FUNCTION":
+                struct_component = "function"
+            case "RESULTS":
+                struct_component = "results"
+            case _:
+                continue
+        structure[proc_name][struct_component] = parameters[param]
 
     return structure
 
 
-def get_proc_hashes(proc_names, proc_params, proc_dependencies, input_hashes):
-    """
-    Generate a unique hash for each process
-    based on a its name, parameters and dependencies
-    """
-    proc_hashes = {}
-
-    # Must iterate over the procs in order so dependencies are hashed first
-    for proc in proc_names:
-        # Hash each proc and its dependencies
-        proc_hash = sha256(proc.encode())
-        # Add parameter hashes
-        for param_item in proc_params[proc].items():
-            proc_hash.update(str(param_item).encode())
-        # Add dependency hashes
-        for dep in proc_dependencies[proc]:
-            split_dep = dep.split(".")
-            # The dep value is either either the dep hash of the hasehd input in the case of input
-            if split_dep[0] == "inputs":
-                dep_value = input_hashes[int(split_dep[1])]
-            else:
-                dep_value = proc_hashes[split_dep[0]]
-            # Hash the dep and update the proc hash
-            dep_hash = str(dep_value).encode()
-            proc_hash.update(dep_hash)
-        proc_hashes[proc] = proc_hash.hexdigest()
-
-    return proc_hashes
-
-
-def gen_dependency_hashes(proc_dependencies, proc_hashes, input_hashes):
-    """Turn every dependency into the appropriate hash"""
-    dep_hashes = {}
-    for proc in proc_dependencies:
-        dep_hashes[proc] = []
-        for dep in proc_dependencies[proc]:
-            # Get the dependency hash
-            split_dep = dep.split(".")
-            if split_dep[0] == "inputs":
-                dep_hash = input_hashes[int(split_dep[1])]
-                split_dep = split_dep[:1]
-            else:
-                dep_hash = proc_hashes[split_dep[0]]
-            split_dep[0] = dep_hash
-
-            # Save it to the dictionary
-            # TODO: Combine with get_proc_hashes?
-            dep_hashes[proc].append(".".join(split_dep))
-
-    return dep_hashes
-
-
-def gen_structure_hashes(structure_df, input_hashes):
+def gen_structure_hashes(structure_df, source_hashes):
     """
     Hash the dependencies of each process,
     and then hash the processes themselves
     """
     # Order the structure based on the order the processes must be run in
     structure_df.sort_values("order", inplace=True)
-    hash_df = pd.DataFrame(columns=["hash", "dep_hashes"])
+    hash_df = pd.DataFrame(columns=["result_hashes", "source_hashes"])
 
     for process in structure_df.iterrows():
         # The process function, params and hashes of dependencies
         # are used to generate a process' hash
         proc_name = process[0]
-        proc_deps = process[1]["deps"]
+        proc_sources = process[1]["source_names"]
         proc_params = process[1]["params"]
         proc_function = process[1]["function"]
+        # A seperate hash is generated for each result
+        proc_results = process[1]["result_names"]
 
-        # Store the hash of a process, as well as the hashes of its dependencies
-        hash_df.loc[proc_name, "dep_hashes"] = []
-
+        # First retrieve and save the source hashes
+        proc_source_hashes = [source_hashes.get(s) for s in proc_sources]
+        hash_df.loc[proc_name, "source_hashes"] = proc_source_hashes
+        # Then generate and save the result hashes
         proc_hash = sha256(str(proc_function).encode())
-        for param_item in proc_params.items():
-            proc_hash.update(str(param_item).encode())
-        for dep in proc_deps:
-            [dep_name, *dep_index] = dep.split(".")
-            dep_index = int(dep_index[0]) if dep_index else None
-            # Input hashes have to be retrieved from their own dictionary
-            # TODO is there a better way?
-            if dep_name == "inputs":
-                # If loading an input hash, get it from the given dict
-                dep_hash = input_hashes[dep_index]
-            else:
-                # Otherwise look for a previously claculated hash,
-                dep_hash = hash_df.loc[dep_name, "hash"]
-                # and include the index if it exists
-                dep_hash += "." + str(dep_index) if dep_index != None else ""
-            # Save the dependency hashes as well as adding them to the process hash
-            hash_df.loc[proc_name, "dep_hashes"].append(dep_hash)
-            proc_hash.update(dep_hash.encode())
+        proc_hash.update(str(source_hashes).encode())
+        proc_hash.update(str(proc_params).encode())
+        proc_result_hashes = [proc_hash.copy() for r in proc_results]
+        for i, r in enumerate(proc_results):
+            proc_result_hashes[i].update(str(r).encode())
+            proc_result_hashes[i] = str(proc_result_hashes[i].hexdigest())
+        hash_df.loc[proc_name, "result_hashes"] = proc_result_hashes
 
-        # Save the assembled hash
-        hash_df.loc[proc_name, "hash"] = proc_hash.hexdigest()
+        # Also save the result hashes to be used as source hashes for other procs
+        for source_name, source_hash in zip(proc_results, proc_result_hashes):
+            source_hashes[source_name] = source_hash
 
     # Return the combined df
     structure_df = pd.concat([structure_df, hash_df], axis=1)
