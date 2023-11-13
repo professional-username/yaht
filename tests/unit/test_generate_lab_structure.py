@@ -15,13 +15,13 @@ def mock_all_procs(mocker):
 def test_simple_data_input(mock_all_procs):
     """Test the most bare essential config that reads input from a given hash"""
     config = {
+        "source_hashes": {"in": "DATA_HASH"},
         "experiments": {
             "exp1": {
-                "inputs": ["hash:DATA_HASH"],
                 "structure": {
-                    "foo": ["inputs.0"],
+                    "foo": {"sources": ["in"]},
                 },
-                "outputs": ["foo"],
+                "results": ["foo"],
             }
         },
     }
@@ -36,50 +36,29 @@ def test_simple_data_input(mock_all_procs):
     # The process should have the correct assigned experiment
     assert structure.loc["foo", "experiment"] == "exp1"
     # The input hash of the single process should be correct
-    assert structure.loc["foo", "dep_hashes"] == ["DATA_HASH"]
-
-
-def test_simple_file_input(mock_all_procs):
-    """Test the most bare essential config that reads input from a file"""
-    config = {
-        "input_files": {"EXAMPLE_FILE": "FILE_HASH"},
-        "experiments": {
-            "exp1": {
-                "inputs": ["file:EXAMPLE_FILE"],
-                "structure": {
-                    "foo": ["inputs.0"],
-                },
-                "outputs": ["foo"],
-            }
-        },
-    }
-
-    # Generate the structure
-    structure = generate_laboratory_structure(config)
-    structure.index = structure["name"]  # For easier testing
-
-    # The input hash of the single process should be correct
-    assert structure.loc["foo", "dep_hashes"] == ["FILE_HASH"]
+    assert structure.loc["foo", "source_hashes"] == ["DATA_HASH"]
 
 
 def test_multiple_experiments(mock_all_procs):
     """Test setting up multiple experiments"""
     config = {
+        "source_hashes": {
+            "input1": "DATA_HASH",
+            "input2": "ANOTHER_DATA_HASH",
+        },
         "experiments": {
             "exp1": {
-                "inputs": ["hash:DATA_HASH"],
                 "structure": {
-                    "foo": ["inputs.0"],
+                    "foo": {"sources": ["input1"]},
                 },
-                "outputs": ["foo"],
+                "results": ["foo"],
             },
             "exp2": {
-                "inputs": ["hash:ANOTHER_DATA_HASH"],
                 "structure": {
-                    "foo": ["inputs.0"],
-                    "bar": ["foo"],
+                    "foo": {"sources": ["input2"]},
+                    "bar": {"sources": ["foo"]},
                 },
-                "outputs": ["bar"],
+                "results": ["bar"],
             },
         },
     }
@@ -92,8 +71,9 @@ def test_multiple_experiments(mock_all_procs):
     assert type(structure) == pd.DataFrame
     assert len(structure) == 3
     # Check that every process has the correct dependency hashes
-    assert structure.loc[("exp1", "foo"), "dep_hashes"] == ["DATA_HASH"]
-    assert structure.loc[("exp2", "foo"), "dep_hashes"] == ["ANOTHER_DATA_HASH"]
-    assert structure.loc[("exp2", "bar"), "dep_hashes"] == [
-        structure.loc[("exp2", "foo"), "hash"]
-    ]
+    assert structure.loc[("exp1", "foo"), "source_hashes"] == ["DATA_HASH"]
+    assert structure.loc[("exp2", "foo"), "source_hashes"] == ["ANOTHER_DATA_HASH"]
+    assert (
+        structure.loc[("exp2", "bar"), "source_hashes"]
+        == [structure.loc[("exp2", "foo"), "result_hashes"]][0]
+    )

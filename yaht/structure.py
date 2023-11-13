@@ -12,23 +12,12 @@ def generate_laboratory_structure(config):
     laboratory_structure = pd.DataFrame()
 
     # Generate every experiment structure
-    input_files = config["input_files"] if "input_files" in config else {}
-    experiment_configs = config["experiments"]
+    source_hashes = config.get("source_hashes", {})
+    experiment_configs = config.get("experiments")
     for exp_name, exp_config in experiment_configs.items():
-        # Substitute in the input hashes for each experiment TODO: Extract to seperate method?
-        exp_inputs = exp_config["inputs"]
-        input_hashes = []
-        for exp_input in exp_inputs:
-            input_type, input_name = exp_input.split(":")
-            if input_type == "file":
-                input_hash = input_files[input_name]
-            elif input_type == "hash":
-                input_hash = input_name
-            else:
-                raise ValueError("Invalid input type '%s'" % input_type)
-            input_hashes.append(input_hash)
-        # Generate the experimennt structure
-        exp_config["inputs"] = input_hashes
+        # Substitute the global source hashes into the experiment config
+        exp_config["source_hashes"] = source_hashes
+        # Generate the experiment structure
         exp_structure = generate_experiment_structure(exp_config)
         # Set other values for the experiment
         exp_structure["experiment"] = exp_name
