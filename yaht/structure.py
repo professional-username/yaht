@@ -48,18 +48,18 @@ def generate_experiment_structure(config):
     experiment_structure = pd.DataFrame()
 
     # Assemble the parameters for each trial
-    global_params = config["parameters"] if "parameters" in config else {}
-    trial_configs = config["trials"] if "trials" in config else {}
-    trial_configs["control"] = {}
+    global_params = config.get("parameters", {})
+    trial_configs = config.get("trials", {})
+    trial_configs["control"] = {}  # Add a control trial
     for trial in trial_configs:
         trial_configs[trial] = global_params | trial_configs[trial]
 
     # Generate the config for each trial
-    input_hashes = config["inputs"]
+    source_hashes = config.get("source_hashes", {})
     trial_process_structure = config["structure"]
     for trial_name, trial_params in trial_configs.items():
         trial_config = {
-            "inputs": input_hashes,
+            "source_hashes": source_hashes,
             "structure": trial_process_structure,
             "parameters": trial_params,
         }
@@ -70,10 +70,11 @@ def generate_experiment_structure(config):
         )
 
     # Set the output flag for each process
-    output_procs = config["outputs"]
-    experiment_structure["output"] = experiment_structure["name"].apply(
-        lambda x: x in output_procs
+    result_names = config["results"]
+    result_flags = experiment_structure["result_names"].apply(
+        lambda x: list(map(lambda y: y in result_names, x))
     )
+    experiment_structure["results"] = result_flags
 
     return experiment_structure
 
