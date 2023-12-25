@@ -1,173 +1,134 @@
 #!/usr/bin/env python3
 import os
+import re
 import shutil
 import pickle
 import sqlite3
+import logging
+import datetime
+import pandas as pd
+
+METADATA_FILE = "metadata.csv"
+METADATA_COLUMNS = [
+    "hash",
+    "filename",
+    "source",
+    "time_created",
+    "time_modified",
+]
 
 
-class CacheIndex:
-    def __init__(self, cache_dir):
-        # Create the cache dir if necessary
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        # Connect to or create the sqlite db
-        index_fname = "cacheIndex"
-        index_path = os.path.join(cache_dir, index_fname)
-        self.connection = sqlite3.connect(index_path)
-        # Create the tables in the db if they don't exist
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS CachedData (
-            hash_id TEXT PRIMARY KEY NOT NULL,
-            filename TEXT,
-            source TEXT
-        );"""
-        cursor = self.connection.cursor()
-        cursor.execute(create_table_query)
+def store_cache_data(cache_dir, data_hash, data):
+    """Store the given data in the cache"""
+    # Check if the data alread exists in the cache
+    try:
+        metadata = load_cache_metadata(cache_dir).set_index("hash").loc[data_hash]
+        metadata = dict(metadata.dropna().items())
+    except KeyError:
+        metadata = {}
 
-    def add_item(self, key, metadata={}):
-        """Add a new item to the index"""
-        expected_metadata = ["source"]
-        for em in expected_metadata:
-            if em not in metadata:
-                metadata[em] = None
+    # Create a file in the cache dir with the data
+    data_filename = metadata.get("filename", data_hash)
+    # data_filename = os.path.join(cache_dir, data_hash)
+    with open(os.path.join(cache_dir, data_filename), "wb") as data_file:
+        pickle.dump(data, data_file)
 
-        # Generate the filename based on the source
-        if "filename" in metadata:
-            filename = metadata["filename"]
-        elif metadata["source"]:
-            filename = metadata["source"] + key[:5]
-        else:
-            filename = key
-
-        # Store the key and the relevant metadata
-        add_item_query = """
-        INSERT INTO CachedData
-        VALUES ('%s', '%s', '%s');
-        """ % (
-            key,
-            filename,
-            metadata["source"],
-        )
-
-        cursor = self.connection.cursor()
-        cursor.execute(add_item_query)
-        self.connection.commit()
-
-    def delete_item(self, key):
-        """Delete an item from the index"""
-        delete_item_query = (
-            """
-        DELETE FROM CachedData
-        WHERE hash_id = '%s'
-        """
-            % key
-        )
-        cursor = self.connection.cursor()
-        cursor.execute(delete_item_query)
-        self.connection.commit()
-
-    def check_item_exists(self, key):
-        """Check whether a key exists in the db"""
-        check_query = (
-            """
-        SELECT 1
-        FROM CachedData
-        WHERE hash_id = '%s'
-        """
-            % key
-        )
-        cursor = self.connection.cursor()
-        cursor.execute(check_query)
-        data = cursor.fetchall()
-        return len(data) > 0
-
-    def get_item_metadata(self, key, column):
-        """Get the metadata associated with the given key"""
-        get_legend_query = """
-        SELECT %s
-        FROM CachedData
-        WHERE hash_id='%s';
-        """ % (
-            column,
-            key,
-        )
-        cursor = self.connection.cursor()
-        cursor.execute(get_legend_query)
-        metadata = cursor.fetchone()[0]
-        return metadata
-
-    def get_keys_by_metadata(self, data, column):
-        """Get the keys that have the given metadata"""
-        get_legend_query = """
-        SELECT hash_id
-        FROM CachedData
-        WHERE %s='%s';
-        """ % (
-            column,
-            data,
-        )
-        cursor = self.connection.cursor()
-        cursor.execute(get_legend_query)
-        keys = [key[0] for key in cursor.fetchall()]
-        return keys
+    # Generate the new metadata
+    time_modified = datetime.datetime.now()
+    time_created = metadata.get("time_created", time_modified)
+    new_metadata = {
+        "hash": [data_hash],
+        "filename": [data_filename],
+        "time_created": time_created,
+        "time_modified": time_modified,
+    }
+    new_metadata = pd.DataFrame.from_dict(new_metadata, orient="columns")
+    store_cache_metadata(cache_dir, new_metadata, warnings=False)
 
 
-class CacheManager:
-    def __init__(self, cache_dir):
-        """Connect to the cache, initialize it if necessary"""
-        self.cache_index = CacheIndex(cache_dir)
-        self.cache_dir = cache_dir
+def load_cache_data(cache_dir, data_hash):
+    """Load data from the cache"""
+    # Retrieve the data filename from the metadata
+    metadata = load_cache_metadata(cache_dir).set_index("hash").loc[data_hash]
+    metadata = dict(metadata.dropna().items())
+    data_filename = metadata.get("filename", data_hash)
+    # Load the data from the cache
+    with open(os.path.join(cache_dir, data_filename), "rb") as data_file:
+        loaded_data = pickle.load(data_file)
+    # Return the data
+    return loaded_data
 
-    def send_data(self, key, data, metadata={}):
-        """Save the data and record its metadata in the cache index"""
-        # Create a new item if it doesn't exist
-        if not self.cache_index.check_item_exists(key):
-            self.cache_index.add_item(key, metadata)
-        # Write the data to the relevant filename
-        filename = self.cache_index.get_item_metadata(key, "filename")
-        path = os.path.join(self.cache_dir, filename)
-        with open(path, "wb") as f:
-            pickle.dump(data, f)
 
-    def add_file(self, source_file):
-        """Add an external file to the cache"""
-        # Load the data, then write it to the cache TODO This might be inefficient
-        # with open(filename, "rb") as f:
-        #     data = pickle.load(f)
-        # Copy the file to the cache
-        filename = source_file.split("/")[-1]
-        cache_file = os.path.join(self.cache_dir, filename)
-        shutil.copy(source_file, cache_file)
-        # When adding an existing file, use the filename as the hash key
-        metadata = {
-            "filename": filename,
-            "source": "file://" + source_file,
-        }
-        self.cache_index.add_item(filename, metadata)
+def load_cache_metadata(cache_dir):
+    """
+    Load the metadata for a cache,
+    generating it if it doesn't exist
+    """
+    metadata_path = os.path.join(cache_dir, METADATA_FILE)
+    try:
+        metadata = pd.read_csv(metadata_path)
+    # If the cache doesn't exist, create it
+    except FileNotFoundError:
+        metadata = pd.DataFrame(columns=METADATA_COLUMNS)
+        os.mkdir(cache_dir)
+        metadata.to_csv(metadata_path)
+    # Some columns need to have specific datatypes
+    metadata["time_created"] = pd.to_datetime(metadata["time_created"])
+    metadata["time_modified"] = pd.to_datetime(metadata["time_modified"])
+    return metadata
 
-    def get_data(self, key):
-        """Load the data from the cache by the given key"""
-        filename = self.cache_index.get_item_metadata(key, "filename")
-        path = os.path.join(self.cache_dir, filename)
-        with open(path, "rb") as f:
-            data = pickle.load(f)
-        return data
 
-    def get_metadata(self, key, column):
-        return self.cache_index.get_item_metadata(key, column)
+def store_cache_metadata(cache_dir, new_metadata, warnings=True):
+    """Add one or more rows to the metadata"""
+    # First verify that the columns match
+    new_columns = list(new_metadata.columns)
+    if new_columns != METADATA_COLUMNS:
+        extra_columns = [c for c in new_columns if c not in METADATA_COLUMNS]
+        missing_columns = [c for c in METADATA_COLUMNS if c not in new_columns]
+        # Resample the metadata to include the correct columns
+        new_metadata[missing_columns] = None
+        new_metadata = new_metadata[METADATA_COLUMNS]
+        # Send warnings if this is necessary
+        if warnings:
+            if len(extra_columns) > 0:
+                logging.warning("Tried to store metadata columns %s", extra_columns)
+            if len(missing_columns) > 0:
+                logging.warning("Missing metadata columns %s", missing_columns)
 
-    def get_keys_by_metadata(self, data, column):
-        return self.cache_index.get_keys_by_metadata(data, column)
+    # Combine with existing metadata
+    metadata = load_cache_metadata(cache_dir)
+    metadata = (
+        metadata.set_index("hash")
+        .combine(new_metadata.set_index("hash"), lambda x, y: y if y.any() else x)
+        .reset_index()
+    )
 
-    def check_data(self, key):
-        return self.cache_index.check_item_exists(key)
+    # Save the new metadata
+    metadata_path = os.path.join(cache_dir, METADATA_FILE)
+    metadata.to_csv(metadata_path)
 
-    def delete_data(self, key):
-        """Delete the data file and relevant cache index entry"""
-        if not self.cache_index.check_item_exists(key):
-            return
 
-        filename = self.cache_index.get_item_metadata(key, "filename")
-        path = os.path.join(self.cache_dir, filename)
-        os.remove(path)
-        self.cache_index.delete_item(key)
+def update_cache_filenames(cache_dir):
+    """Update the filenames of files in the cache based on metadata"""
+    # First load the existing ones
+    metadata = load_cache_metadata(cache_dir)
+    filenames = metadata["filename"]
+    # Then generate what they chould be
+    hashes = metadata["hash"]
+    sources = metadata["source"]
+    source_to_fname = lambda x: re.sub(r"[^a-zA-Z0-9]", "_", x.lower())
+    expected_filenames = sources.apply(source_to_fname) + "_" + hashes.str.slice(0, 4)
+
+    # Find the filenames that don't match
+    filename_mask = filenames != expected_filenames
+    filenames_from = filenames[filename_mask]
+    filenames_to = expected_filenames[filename_mask]
+    # Rename the relevant files
+    for fname_from, fname_to in zip(filenames_from, filenames_to):
+        fname_from = os.path.join(cache_dir, fname_from)
+        fname_to = os.path.join(cache_dir, fname_to)
+        os.rename(fname_from, fname_to)
+
+    # Save the new filenames
+    metadata["filename"] = expected_filenames
+    store_cache_metadata(cache_dir, metadata)
