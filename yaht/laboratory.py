@@ -10,6 +10,7 @@ class Laboratory:
     def __init__(self, config):
         # Get and set up general settings etc
         settings = config.get("settings", {})
+        self.lab_name = settings.get("lab_name", "lab")
         self.cache_dir = settings.get("cache_dir", None)
         self.existing_metadata = CM.load_cache_metadata(self.cache_dir)
 
@@ -42,6 +43,9 @@ class Laboratory:
     def run_experiments(self):
         """Run every process that needs running"""
         self.determine_unrun_processes()  # First check which processes need running
+        # Store metadata generated in the running of the experiments
+        generated_metadata = pd.DataFrame(columns=["hash", "source"])
+
         # Sort by experiment, trial and order, and then run
         sorted_structure = self.structure.sort_values(
             by=["experiment", "trial", "order"]
@@ -61,6 +65,23 @@ class Laboratory:
             for h, d in zip(result_hashes, result_data):
                 self.set_data(h, d)
 
+            # Store any relevant metadata
+            proc_source = "%s/%s.%s.%s" % (
+                self.lab_name,
+                proc_row["experiment"],
+                proc_row["trial"],
+                proc_row["name"],
+            )
+            novel_metadata = pd.DataFrame(
+                {"hash": result_hashes, "source": [proc_source] * len(result_hashes)}
+            )
+            generated_metadata = pd.concat(
+                [generated_metadata, novel_metadata], ignore_index=True
+            )
+        # Store the generated metadata in the cache
+        CM.store_cache_metadata(self.cache_dir, generated_metadata, warnings=False)
+        CM.update_cache_filenames(self.cache_dir)
+
     def get_data(self, data_hash):
         """First try to get the data from internal storage, then the cache"""
         if data_hash in self.internal_data:
@@ -71,6 +92,7 @@ class Laboratory:
             return data
 
     def set_data(self, data_hash, data):
+        """Set the data both internally and in the cache"""
         self.internal_data[data_hash] = data
         CM.store_cache_data(self.cache_dir, data_hash, data)
 
@@ -96,7 +118,7 @@ class Laboratory:
             result_hashes = [proc_row["result_hashes"][idx] for idx in result_indeces]
             results = [self.get_data(h) for h in result_hashes]
             # Then add them to the result_df
-            new_rows = pd.DataFrame({"value": results})
+            new_rows = pd.DataFrame({"value": results, "hash": result_hashes})
             new_rows["experiment"] = proc_row["experiment"]
             new_rows["trial"] = proc_row["trial"]
             new_rows["process"] = proc_row["name"]
