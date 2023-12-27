@@ -30,6 +30,7 @@ def mock_config():
 
     config = {
         "settings": {
+            "lab_name": "some_lab_name",
             "cache_dir": cache_dir,
         },
         "sources": {
@@ -69,3 +70,24 @@ def test_lab_run_experiments(mock_config, mock_all_procs):
     assert results["process"][0] == "bar"
     assert results["name"][0] == "bar_result"
     assert results["value"][0] == "EXAMPLE_DATA_foo_bar"
+    assert results["hash"][0]  # We don't know what the hash is but it should be there
+
+
+def test_lab_metadata_generation(mock_config, mock_all_procs):
+    """Running experiments should generate all sorts of metadata"""
+    lab = Laboratory(mock_config)
+    lab.run_experiments()
+    cache_dir = mock_config["settings"]["cache_dir"]
+    cached_metadata = CM.load_cache_metadata(cache_dir)
+
+    # Check that things like source and filename are set correctly
+    assert "some_lab_name/some_experiment.control.foo" in list(
+        cached_metadata["source"]
+    )
+    assert "some_lab_name/some_experiment.control.bar" in list(
+        cached_metadata["source"]
+    )
+    # Check that the filename has the right components at least
+    assert "some_lab_name" in cached_metadata["filename"][0]
+    assert "some_experiment" in cached_metadata["filename"][0]
+    assert "control" in cached_metadata["filename"][0]
