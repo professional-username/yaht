@@ -6,6 +6,7 @@ import pickle
 import sqlite3
 import logging
 import datetime
+import numpy as np
 import pandas as pd
 
 METADATA_FILE = "metadata.csv"
@@ -39,8 +40,8 @@ def store_cache_data(cache_dir, data_hash, data):
     new_metadata = {
         "hash": [data_hash],
         "filename": [data_filename],
-        "time_created": time_created,
-        "time_modified": time_modified,
+        "time_created": [time_created],
+        "time_modified": [time_modified],
     }
     new_metadata = pd.DataFrame.from_dict(new_metadata, orient="columns")
     store_cache_metadata(cache_dir, new_metadata, warnings=False)
@@ -88,6 +89,8 @@ def store_cache_metadata(cache_dir, new_metadata, warnings=True):
         # Resample the metadata to include the correct columns
         new_metadata[missing_columns] = None
         new_metadata = new_metadata[METADATA_COLUMNS]
+        # Ensure columns abide to certain formatting
+        new_metadata["hash"] = new_metadata["hash"].apply(str.strip)
         # Send warnings if this is necessary
         if warnings:
             if len(extra_columns) > 0:
@@ -96,16 +99,14 @@ def store_cache_metadata(cache_dir, new_metadata, warnings=True):
                 logging.warning("Missing metadata columns %s", missing_columns)
 
     # Combine with existing metadata
-    metadata = load_cache_metadata(cache_dir)
-    metadata = (
-        metadata.set_index("hash")
-        .combine(new_metadata.set_index("hash"), lambda x, y: y if y.any() else x)
-        .reset_index()
-    )
+    metadata = load_cache_metadata(cache_dir).set_index("hash")
+    new_metadata = new_metadata.set_index("hash")
+    metadata = new_metadata.combine_first(metadata)
+    metadata = metadata.reset_index("hash")
 
     # Save the new metadata
     metadata_path = os.path.join(cache_dir, METADATA_FILE)
-    metadata.to_csv(metadata_path)
+    metadata.to_csv(metadata_path, index=False)
 
 
 def update_cache_filenames(cache_dir):
@@ -113,14 +114,20 @@ def update_cache_filenames(cache_dir):
     # First load the existing ones
     metadata = load_cache_metadata(cache_dir)
     filenames = metadata["filename"]
-    # Then generate what they chould be
+    # Then generate what they should be
     hashes = metadata["hash"]
     sources = metadata["source"]
-    source_to_fname = lambda x: re.sub(r"[^a-zA-Z0-9]", "_", x.lower())
-    expected_filenames = sources.apply(source_to_fname) + "_" + hashes.str.slice(0, 4)
+    source_to_fname = lambda x: re.sub(r"[^a-zA-Z0-9]", "_", str(x).lower())
+    expected_filenames = sources.apply(source_to_fname)
+    expected_filenames += "_" + hashes.str.slice(0, 4)
+    # hacky fix for nans
+    expected_filenames = expected_filenames.apply(
+        lambda x: np.nan if x.startswith("nan") else x
+    )
 
     # Find the filenames that don't match
     filename_mask = filenames != expected_filenames
+    filename_mask = filename_mask & expected_filenames.apply(pd.notnull)
     filenames_from = filenames[filename_mask]
     filenames_to = expected_filenames[filename_mask]
     # Rename the relevant files

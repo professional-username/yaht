@@ -4,6 +4,7 @@ import shutil
 import pytest
 import tempfile
 import datetime
+import numpy as np
 import pandas as pd
 import yaht.cache_management as CM
 
@@ -38,12 +39,12 @@ def test_store_metadata(cache_dir):
             {
                 "hash": "SOME_HASH",
                 "filename": "some_filename",
-                "name": "some_name",
+                "source": "some_source",
             },
             {
                 "hash": "ANOTHER_HASH",
                 "filename": "another_filename",
-                "name": "another_name",
+                "source": "another_source",
             },
         ]
     )
@@ -52,39 +53,9 @@ def test_store_metadata(cache_dir):
     # We should then be able to load the metadata
     loaded_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
     assert loaded_metadata.loc["SOME_HASH", "filename"] == "some_filename"
-    assert loaded_metadata.loc["SOME_HASH", "name"] == "some_name"
+    assert loaded_metadata.loc["SOME_HASH", "source"] == "some_source"
     assert loaded_metadata.loc["ANOTHER_HASH", "filename"] == "another_filename"
-    assert loaded_metadata.loc["ANOTHER_HASH", "name"] == "another_name"
-
-
-def test_warning_on_incorrect_metadata(cache_dir, mocker):
-    """
-    Test that storeing incorrect metadata sends a warning,
-    but doesn't crash the program
-    """
-    mocked_warning = mocker.patch("yaht.cache_management.logging.warning")
-    too_many_columns = pd.DataFrame(
-        [
-            {
-                "hash": "SOME_HASH",
-                "filename": "some_filename",
-                "name": "some_name",
-                "FAKE_COLUMN": "fake_column",
-                "AND_ANOTHER_ONE": "fake_column",
-            },
-        ]
-    )
-    CM.store_cache_metadata(cache_dir, too_many_columns)
-    mocked_warning.assert_called_with(
-        "Tried to store metadata columns %s", ["FAKE_COLUMN", "AND_ANOTHER_ONE"]
-    )
-
-    # Too few columns should say which columns were missed
-    too_few_columns = pd.DataFrame([{"hash": "SOME_HASH"}])
-    CM.store_cache_metadata(cache_dir, too_few_columns)
-    mocked_warning.assert_called_with(
-        "Missing metadata columns %s", ["filename", "name"]
-    )
+    assert loaded_metadata.loc["ANOTHER_HASH", "source"] == "another_source"
 
 
 def test_override_metadata(cache_dir):
@@ -94,9 +65,13 @@ def test_override_metadata(cache_dir):
             {
                 "hash": "SOME_HASH",
                 "filename": None,
-                "name": "some_name",
+                "source": "some_source",
             },
-            {"hash": "ANOTHER_HASH", "filename": "another_filename", "name": None},
+            {
+                "hash": "ANOTHER_HASH",
+                "filename": "another_filename",
+                "source": np.nan,
+            },
         ]
     )
     CM.store_cache_metadata(cache_dir, new_metadata)
@@ -107,12 +82,12 @@ def test_override_metadata(cache_dir):
             {
                 "hash": "SOME_HASH",
                 "filename": "some_filename",
-                "name": None,
+                "source": np.nan,
             },
             {
                 "hash": "ANOTHER_HASH",
                 "filename": "OVERRIDE_filename",
-                "name": None,
+                "source": None,
             },
         ]
     )
@@ -122,9 +97,49 @@ def test_override_metadata(cache_dir):
     loaded_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
     assert len(loaded_metadata) == 2
     assert loaded_metadata.loc["SOME_HASH", "filename"] == "some_filename"
-    assert loaded_metadata.loc["SOME_HASH", "name"] == "some_name"
+    assert loaded_metadata.loc["SOME_HASH", "source"] == "some_source"
     assert loaded_metadata.loc["ANOTHER_HASH", "filename"] == "OVERRIDE_filename"
-    assert np.isnan(loaded_metadata.loc["ANOTHER_HASH", "name"])
+    assert np.isnan(loaded_metadata.loc["ANOTHER_HASH", "source"])
+
+
+def test_metadata_column_stability(cache_dir):
+    """Test that adding metadata over and over doesn't created or destroy new columns"""
+    new_metadata = pd.DataFrame(
+        [
+            {
+                "hash": "SOME_HASH",
+                "filename": None,
+                "source": "some_source",
+            },
+            {
+                "hash": "ANOTHER_HASH",
+                "filename": "another_filename",
+                "source": np.nan,
+            },
+        ]
+    )
+    CM.store_cache_metadata(cache_dir, new_metadata)
+    original_stored_metadata = CM.load_cache_metadata(cache_dir)
+
+    # Now store the same data but with different values missing etc
+    new_metadata = pd.DataFrame(
+        [
+            {
+                "hash": "SOME_HASH",
+                "filename": "some_filename",
+                "source": np.nan,
+            },
+            {
+                "hash": "ANOTHER_HASH",
+                "filename": "OVERRIDE_filename",
+                "source": None,
+            },
+        ]
+    )
+    CM.store_cache_metadata(cache_dir, new_metadata)
+    new_stored_metadata = CM.load_cache_metadata(cache_dir)
+
+    assert (original_stored_metadata.columns == new_stored_metadata.columns).all()
 
 
 def test_suppress_save_warnings(cache_dir, mocker):
@@ -200,6 +215,12 @@ def test_modified_filenames(cache_dir):
     # Get the original filename for reference
     old_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
     old_filename = old_metadata.loc[data_hash, "filename"]
+
+    # Test that running the function without changing metadata doesn't change the filename
+    CM.update_cache_filenames(cache_dir)
+    still_old_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
+    still_old_filename = still_old_metadata.loc[data_hash, "filename"]
+    assert still_old_filename == old_filename
 
     # If we now add a data source to the metadata and update the filenames..
     new_metadata = pd.DataFrame(
