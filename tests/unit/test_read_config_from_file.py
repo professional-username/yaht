@@ -71,6 +71,33 @@ def test_process_sources():
     assert config == expected_config
 
 
+def test_process_general_settings():
+    """Test the loading of the structure and process sources"""
+    yaml_config = "\n".join(
+        [
+            # The settings could be anything
+            "SETTINGS:",
+            '  setting1: "some_setting"',
+            "  another_setting: 12",
+            "SOURCES:",
+            '  some_file: "file:example_file"',
+            "some_experiment:",
+            "  results: foo",
+            "  structure:",
+            "    foo: some_file",
+            "    bar: some_file, another_file",
+        ]
+    )
+    config_fname = gen_config_file(yaml_config)
+
+    config = clean_dict(read_config_file(config_fname))
+    expected_settings = {
+        "setting1": "some_setting",
+        "another_setting": 12,
+    }
+    assert config.get("settings") == expected_settings
+
+
 def test_multiple_trials():
     """test reading a config that specifies multiple trials"""
     yaml_config = "\n".join(
