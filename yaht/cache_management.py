@@ -72,7 +72,7 @@ def load_cache_metadata(cache_dir):
     except FileNotFoundError:
         metadata = pd.DataFrame(columns=METADATA_COLUMNS)
         os.mkdir(cache_dir)
-        metadata.to_csv(metadata_path)
+        metadata.to_csv(metadata_path, index=False)
     # Some columns need to have specific datatypes
     metadata["time_created"] = pd.to_datetime(metadata["time_created"])
     metadata["time_modified"] = pd.to_datetime(metadata["time_modified"])
@@ -139,3 +139,35 @@ def update_cache_filenames(cache_dir):
     # Save the new filenames
     metadata["filename"] = expected_filenames
     store_cache_metadata(cache_dir, metadata)
+
+
+def sync_cache_metadata(cache_dir):
+    """
+    Check through the files in the cache
+    adding any new ones and deleting missing ones from the metadata
+    """
+    metadata = load_cache_metadata(cache_dir)
+    recorded_files = metadata["filename"]
+    files_in_cache = os.listdir(cache_dir)
+    files_in_cache.remove(METADATA_FILE)
+    # Remove missing file metadata
+    missing_files = [f for f in recorded_files if f not in files_in_cache]
+    if len(missing_files):
+        metadata = metadata[~metadata["filename"].isin(missing_files)]
+        metadata_path = os.path.join(cache_dir, METADATA_FILE)
+        metadata.to_csv(metadata_path, index=False)
+    # Add missing files
+    unsaved_files = [f for f in files_in_cache if f not in recorded_files]
+    time_modified = datetime.datetime.now()
+    time_created = time_modified
+    store_cache_metadata(
+        cache_dir,
+        pd.DataFrame(
+            {
+                "hash": unsaved_files,
+                "filename": unsaved_files,
+                "time_modified": time_modified,
+                "time_created": time_created,
+            }
+        ),
+    )
