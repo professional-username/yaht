@@ -18,6 +18,8 @@ def read_config_file(config_fname):
         match key:
             case "SOURCES":
                 config["sources"] = value
+            case "SETTINGS":
+                config["settings"] = value
             # If they don't fall into one of the above categories,
             # they represent an experiment
             case _:
