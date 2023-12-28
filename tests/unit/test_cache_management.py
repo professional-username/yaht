@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import pickle
 import shutil
 import pytest
 import tempfile
@@ -241,3 +242,32 @@ def test_modified_filenames(cache_dir):
     assert os.path.exists(os.path.join(cache_dir, filename))
     # Check the old file is gone
     assert not os.path.exists(os.path.join(cache_dir, old_filename))
+
+
+def test_sync_cache_metadata(cache_dir):
+    """
+    Test that by deleting or adding files in the cache
+    we delete or add their metadata as well
+    """
+    CM.store_cache_data(cache_dir, "fake_key", "fake_data")
+    # First add a file and see if it syncs with the metadata
+    with open(os.path.join(cache_dir, "NEW_FILE"), "wb") as f:
+        pickle.dump("some_new_data", f)
+    # The cache should only update after the function is called
+    assert len(CM.load_cache_metadata(cache_dir)) == 1
+    save_time = datetime.datetime.now()
+    CM.sync_cache_metadata(cache_dir)
+    # The created hash should be the same as the filename
+    assert CM.load_cache_data(cache_dir, "NEW_FILE") == "some_new_data"
+    synced_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
+    assert len(synced_metadata) == 2
+    # And the time it was synced should also be saved
+    recorded_save_time = synced_metadata.loc["NEW_FILE", "time_created"]
+    assert recorded_save_time >= save_time
+    assert recorded_save_time <= save_time + datetime.timedelta(seconds=1)
+    assert recorded_save_time == synced_metadata.loc["NEW_FILE", "time_modified"]
+
+    # Then delete the file and check it no longer exists in the metadata
+    os.remove(os.path.join(cache_dir, "NEW_FILE"))
+    CM.sync_cache_metadata(cache_dir)
+    assert len(CM.load_cache_metadata(cache_dir)) == 1
