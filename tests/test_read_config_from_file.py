@@ -58,10 +58,12 @@ def test_process_sources():
                     "foo": {
                         "sources": ["some_file"],
                         "function": "foo",
+                        "results": ["foo"],
                     },
                     "bar": {
                         "sources": ["some_file", "another_file"],
                         "function": "bar",
+                        "results": ["bar"],
                     },
                 },
                 "results": ["foo"],
@@ -129,6 +131,7 @@ def test_multiple_trials():
                     "foo": {
                         "sources": ["some_file"],
                         "function": "foo",
+                        "results": ["foo"],
                     }
                 },
                 "results": ["foo"],
@@ -172,6 +175,7 @@ def test_parameters():
                     "foo": {
                         "sources": ["some_file"],
                         "function": "foo",
+                        "results": ["foo"],
                     }
                 },
                 "results": ["foo"],
@@ -252,6 +256,7 @@ def test_specifying_global_results():
                     "foo": {
                         "sources": ["some_file"],
                         "function": "foo",
+                        "results": ["foo"],
                     },
                     "bar": {
                         "sources": ["some_file"],
@@ -293,6 +298,7 @@ def test_setting_process_functions():
                     "foo": {
                         "sources": ["some_file"],
                         "function": "bar",
+                        "results": ["foo"],
                     },
                 },
                 "results": ["foo"],
@@ -327,11 +333,13 @@ def test_empty_sources():
                         # As the sources is an empty list, clean_dict should remove it
                         # "sources": [],
                         "function": "foo",
+                        "results": ["foo"],
                     },
                     "bar": {
                         # The other process should have only one source
                         "sources": ["foo"],
                         "function": "bar",
+                        "results": ["bar"],
                     },
                 },
                 "results": ["foo"],
