@@ -67,7 +67,7 @@ def process_structure_config(raw_structure_config):
         # Then generate the sources and results from the value
         sources_string = value.split("->")[0].strip()
         sources_list = sources_string.split(",")
-        results_string = value.split("->")[1] if "->" in value else ""
+        results_string = value.split("->")[1] if "->" in value else proc_name
         results_list = results_string.split(",")
 
         # Strip all parameters of extraneous whitespace
@@ -75,7 +75,7 @@ def process_structure_config(raw_structure_config):
         proc_function = proc_function.strip()
         sources_list = list(map(str.strip, sources_list))
         results_list = list(map(str.strip, results_list))
-        # Remove 'empty' sources
+        # Remove 'empty' sources and results
         sources_list = [s for s in sources_list if s != "_"]
 
         # Combine into a single process config and add to structure config
