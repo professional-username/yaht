@@ -216,3 +216,35 @@ def test_setting_structure_as_parameters(simple_proc):
     assert structure.loc["foobar", "source_hashes"] == [
         structure.loc["f1", "result_hashes"][0]
     ]
+
+
+def test_empty_sources(simple_proc):
+    """Test not supplying a source to the process"""
+    config = {
+        "structure": {
+            "foobar": {
+                "sources": [],
+                "results": ["foobar"],
+            },
+        },
+    }
+
+    structure = generate_trial_structure(config)
+
+    # There should be a single row for a single process
+    assert len(structure) == 1
+    # The hash just has to exist
+    hash_key = structure["result_hashes"].item()[0]
+    # The other values should be as follows:
+    assert structure.iloc[0].to_dict() == {
+        # Essential for processing
+        "order": 0,
+        "function": simple_proc,
+        "params": {},
+        "source_hashes": [],
+        "result_hashes": [hash_key],
+        # Metadata
+        "name": "foobar",
+        "source_names": [],
+        "result_names": ["foobar"],
+    }
