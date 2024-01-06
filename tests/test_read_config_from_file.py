@@ -300,3 +300,42 @@ def test_setting_process_functions():
         },
     }
     assert config == expected_config
+
+
+def test_empty_sources():
+    """Test specifying empty sources / no sources"""
+    yaml_config = "\n".join(
+        [
+            "some_experiment:",
+            "  results: foo",
+            "",
+            "  structure:",
+            # A non-source is given an underscore
+            "    foo: _",
+            # Giving it alongside another source shouldn't break anything
+            "    bar: _, foo, _",
+        ]
+    )
+    config_fname = gen_config_file(yaml_config)
+
+    config = clean_dict(read_config_file(config_fname))
+    expected_config = {
+        "experiments": {
+            "some_experiment": {
+                "structure": {
+                    "foo": {
+                        # As the sources is an empty list, clean_dict should remove it
+                        # "sources": [],
+                        "function": "foo",
+                    },
+                    "bar": {
+                        # The other process should have only one source
+                        "sources": ["foo"],
+                        "function": "bar",
+                    },
+                },
+                "results": ["foo"],
+            }
+        },
+    }
+    assert config == expected_config
