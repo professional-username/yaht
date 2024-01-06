@@ -162,7 +162,11 @@ def get_organized_proc_names(structure, proc_results):
     """Organize processes and their dependencies with networkx"""
     proc_graph = nx.DiGraph()
     for proc_name, proc_sources in structure.items():
-        # Find the processes the proc_sources refer to; e.g. foo.model should find foo
+        # If there's no sources, it goes at level 0
+        if len(proc_sources) == 0:
+            proc_graph.add_edge(proc_name, "INPUT")
+            continue
+        # Find the procs whose results match this proc's sources
         proc_source_procs = []
         for source_name in proc_sources:
             source_proc = next(
