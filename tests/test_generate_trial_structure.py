@@ -108,6 +108,10 @@ def test_process_web(mock_all_procs):
     assert structure.loc["bar", "order"] == 0
     assert structure.loc["foo", "order"] == 1
     assert structure.loc["foobar", "order"] == 2
+    # Check that the result names match up
+    assert structure.loc["foo", "result_names"] == ["foo"]
+    assert structure.loc["bar", "result_names"] == ["bar.one", "bar.two"]
+    assert structure.loc["foobar", "result_names"] == ["foobar"]
 
 
 def test_overwrite_methods(simple_proc):
