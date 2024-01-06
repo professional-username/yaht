@@ -254,7 +254,7 @@ def test_empty_sources(simple_proc):
     }
 
 
-def test_hash_idempotence():
+def test_hash_idempotence(mock_all_procs):
     """Test that generating a hash for something twice gives the same hash"""
     config = {
         "source_hashes": {"source_1": "INPUT_HASH"},
@@ -284,7 +284,7 @@ def test_hash_idempotence():
     assert first_hash == second_hash
 
 
-def test_empty_source_idempotence():
+def test_empty_source_idempotence(mock_all_procs):
     """Test idempotence is maintained when no sources are given"""
     config = {
         "structure": {
