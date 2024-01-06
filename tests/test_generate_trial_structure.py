@@ -248,3 +248,61 @@ def test_empty_sources(simple_proc):
         "source_names": [],
         "result_names": ["foobar"],
     }
+
+
+def test_hash_idempotence():
+    """Test that generating a hash for something twice gives the same hash"""
+    config = {
+        "source_hashes": {"source_1": "INPUT_HASH"},
+        "structure": {
+            "foobar": {
+                "sources": ["source_1"],
+                "results": ["foobar"],
+            },
+        },
+    }
+    structure = generate_trial_structure(config)
+    first_hash = structure["result_hashes"].item()[0]
+
+    # Same config, generated again
+    config = {
+        "source_hashes": {"source_1": "INPUT_HASH"},
+        "structure": {
+            "foobar": {
+                "sources": ["source_1"],
+                "results": ["foobar"],
+            },
+        },
+    }
+    structure = generate_trial_structure(config)
+    second_hash = structure["result_hashes"].item()[0]
+
+    assert first_hash == second_hash
+
+
+def test_empty_source_idempotence():
+    """Test idempotence is maintained when no sources are given"""
+    config = {
+        "structure": {
+            "foobar": {
+                "sources": [],
+                "results": ["foobar"],
+            },
+        },
+    }
+    structure = generate_trial_structure(config)
+    first_hash = structure["result_hashes"].item()[0]
+
+    # Same config, generated again
+    config = {
+        "structure": {
+            "foobar": {
+                "sources": [],
+                "results": ["foobar"],
+            },
+        },
+    }
+    structure = generate_trial_structure(config)
+    second_hash = structure["result_hashes"].item()[0]
+
+    assert first_hash == second_hash
