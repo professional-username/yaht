@@ -42,7 +42,9 @@ class Laboratory:
 
     def run_experiments(self):
         """Run every process that needs running"""
-        self.determine_unrun_processes()  # First check which processes need running
+        # Identify parameters relevant to the current moment
+        CM.sync_cache_metadata(self.cache_dir)
+        self.determine_unrun_processes()
         # Store metadata generated in the running of the experiments
         generated_metadata = pd.DataFrame(columns=["hash", "source"])
 
@@ -106,6 +108,7 @@ class Laboratory:
 
     def get_results(self):
         """Return the result of every process that is marked as 'result'"""
+        CM.sync_cache_metadata(self.cache_dir)
         result_df = pd.DataFrame(
             columns=["experiment", "trial", "process", "name", "value"]
         )
