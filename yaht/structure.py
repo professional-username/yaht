@@ -234,7 +234,7 @@ def gen_structure_hashes(structure_df, source_hashes):
         proc_source_hashes = [source_hashes.get(s) for s in proc_sources]
         hash_df.loc[proc_name, "source_hashes"] = proc_source_hashes
         # Then generate and save the result hashes
-        proc_hash = sha256(str(proc_function).encode())
+        proc_hash = sha256(str(proc_function.__name__).encode())
         proc_hash.update(str(source_hashes).encode())
         proc_hash.update(str(proc_params).encode())
         proc_result_hashes = [proc_hash.copy() for r in proc_results]
