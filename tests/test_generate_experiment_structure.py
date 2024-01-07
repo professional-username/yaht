@@ -77,6 +77,36 @@ def test_multiple_trials(proc_with_param):
     assert structure.loc[("trial2", "add_value"), "results"] == [True]
 
 
+def test_specific_process_parameter_setting(proc_with_param):
+    """Test setting the parameter for a specific process"""
+    config = {
+        "source_hashes": {"in": "INPUT_HASH"},
+        "structure": {
+            "add_1": {"sources": ["in"], "function": "add_value"},
+            "add_2": {"sources": ["add_1"], "function": "add_value"},
+        },
+        "results": ["add_2"],
+        "trials": {
+            "trial1": {"add_2.value": "ONE"},
+            "trial2": {"add_2.value": "TWO"},
+        },
+    }
+
+    # Generate the structure
+    structure = generate_experiment_structure(config)
+    structure.set_index(["trial", "name"], inplace=True)  # For easier testing
+
+    assert len(structure) == 6
+    # There should be 3 copies of the first process with the same params
+    assert structure.loc[("control", "add_1"), "params"] == {}
+    assert structure.loc[("trial1", "add_1"), "params"] == {}
+    assert structure.loc[("trial2", "add_1"), "params"] == {}
+    # And different params for the second process
+    assert structure.loc[("control", "add_2"), "params"] == {}
+    assert structure.loc[("trial1", "add_2"), "params"] == {"value": "ONE"}
+    assert structure.loc[("trial2", "add_2"), "params"] == {"value": "TWO"}
+
+
 def test_global_parameters():
     """Test setting parameters that apply to all processes"""
     config = {
