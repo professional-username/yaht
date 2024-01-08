@@ -40,12 +40,12 @@ def test_store_metadata(cache_dir):
             {
                 "hash": "SOME_HASH",
                 "filename": "some_filename",
-                "source": "some_source",
+                "sources": ["some_source"],
             },
             {
                 "hash": "ANOTHER_HASH",
                 "filename": "another_filename",
-                "source": "another_source",
+                "sources": ["another_source"],
             },
         ]
     )
@@ -53,10 +53,13 @@ def test_store_metadata(cache_dir):
 
     # We should then be able to load the metadata
     loaded_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
+    print(loaded_metadata)
+    print(loaded_metadata.loc["SOME_HASH", "sources"])
+    print(type(loaded_metadata.loc["SOME_HASH", "sources"]))
     assert loaded_metadata.loc["SOME_HASH", "filename"] == "some_filename"
-    assert loaded_metadata.loc["SOME_HASH", "source"] == "some_source"
+    assert loaded_metadata.loc["SOME_HASH", "sources"] == ["some_source"]
     assert loaded_metadata.loc["ANOTHER_HASH", "filename"] == "another_filename"
-    assert loaded_metadata.loc["ANOTHER_HASH", "source"] == "another_source"
+    assert loaded_metadata.loc["ANOTHER_HASH", "sources"] == ["another_source"]
 
 
 def test_override_metadata(cache_dir):
@@ -66,12 +69,12 @@ def test_override_metadata(cache_dir):
             {
                 "hash": "SOME_HASH",
                 "filename": None,
-                "source": "some_source",
+                "sources": ["some_source"],
             },
             {
                 "hash": "ANOTHER_HASH",
                 "filename": "another_filename",
-                "source": np.nan,
+                "sources": [],
             },
         ]
     )
@@ -83,12 +86,12 @@ def test_override_metadata(cache_dir):
             {
                 "hash": "SOME_HASH",
                 "filename": "some_filename",
-                "source": np.nan,
+                "sources": [],
             },
             {
                 "hash": "ANOTHER_HASH",
                 "filename": "OVERRIDE_filename",
-                "source": None,
+                "sources": [],
             },
         ]
     )
@@ -98,9 +101,9 @@ def test_override_metadata(cache_dir):
     loaded_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
     assert len(loaded_metadata) == 2
     assert loaded_metadata.loc["SOME_HASH", "filename"] == "some_filename"
-    assert loaded_metadata.loc["SOME_HASH", "source"] == "some_source"
+    assert loaded_metadata.loc["SOME_HASH", "sources"] == ["some_source"]
     assert loaded_metadata.loc["ANOTHER_HASH", "filename"] == "OVERRIDE_filename"
-    assert np.isnan(loaded_metadata.loc["ANOTHER_HASH", "source"])
+    assert loaded_metadata.loc["ANOTHER_HASH", "sources"] == []
 
 
 def test_metadata_column_stability(cache_dir):
@@ -110,12 +113,12 @@ def test_metadata_column_stability(cache_dir):
             {
                 "hash": "SOME_HASH",
                 "filename": None,
-                "source": "some_source",
+                "sources": ["some_source"],
             },
             {
                 "hash": "ANOTHER_HASH",
                 "filename": "another_filename",
-                "source": np.nan,
+                "sources": [],
             },
         ]
     )
@@ -128,12 +131,12 @@ def test_metadata_column_stability(cache_dir):
             {
                 "hash": "SOME_HASH",
                 "filename": "some_filename",
-                "source": np.nan,
+                "sources": [],
             },
             {
                 "hash": "ANOTHER_HASH",
                 "filename": "OVERRIDE_filename",
-                "source": None,
+                "sources": [],
             },
         ]
     )
@@ -141,6 +144,46 @@ def test_metadata_column_stability(cache_dir):
     new_stored_metadata = CM.load_cache_metadata(cache_dir)
 
     assert (original_stored_metadata.columns == new_stored_metadata.columns).all()
+
+
+def test_multiple_sources(cache_dir):
+    """
+    Test that passing different sources for one hash
+    Stores all of them in a list
+    """
+    # One hash, two sources
+    new_metadata = pd.DataFrame(
+        [
+            {
+                "hash": "SOME_HASH",
+                "sources": ["first_source", "second_source"],
+            },
+        ]
+    )
+    CM.store_cache_metadata(cache_dir, new_metadata)
+
+    loaded_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
+    # There should be a single item with both sources listed
+    assert len(loaded_metadata) == 1
+    expected_sources = ["first_source", "second_source"]
+    assert loaded_metadata.loc["SOME_HASH", "sources"] == expected_sources
+
+    # We should them be able to add another source in the same way
+    new_metadata = pd.DataFrame(
+        [
+            {
+                "hash": "SOME_HASH",
+                "sources": ["third_source"],
+            }
+        ]
+    )
+    CM.store_cache_metadata(cache_dir, new_metadata)
+
+    loaded_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
+    # There should still be a single item, with all sources listed
+    assert len(loaded_metadata) == 1
+    expected_sources = ["first_source", "second_source", "third_source"]
+    assert loaded_metadata.loc["SOME_HASH", "sources"] == expected_sources
 
 
 def test_suppress_save_warnings(cache_dir, mocker):
@@ -227,7 +270,7 @@ def test_modified_filenames(cache_dir):
     new_metadata = pd.DataFrame(
         {
             "hash": [data_hash],
-            "source": ["some-MaDe*uP/Source"],
+            "sources": [["some-MaDe*uP/Source"]],
         }
     )
     # Filename should be all lowercase, with special chars converted to underscores
@@ -242,6 +285,8 @@ def test_modified_filenames(cache_dir):
     assert os.path.exists(os.path.join(cache_dir, filename))
     # Check the old file is gone
     assert not os.path.exists(os.path.join(cache_dir, old_filename))
+
+    # TODO: Test that the first source is used for the filename?
 
 
 def test_sync_cache_metadata(cache_dir):
