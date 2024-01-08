@@ -13,7 +13,7 @@ METADATA_FILE = "metadata.csv"
 METADATA_COLUMNS = [
     "hash",
     "filename",
-    "source",
+    "sources",
     "time_created",
     "time_modified",
 ]
@@ -34,7 +34,7 @@ def store_cache_data(cache_dir, data_hash, data):
     with open(os.path.join(cache_dir, data_filename), "wb") as data_file:
         pickle.dump(data, data_file)
 
-    # Generate the new metadata
+    # Generate the new metadata TODO: Should maybe be in metadata storage
     time_modified = datetime.datetime.now()
     time_created = metadata.get("time_created", time_modified)
     new_metadata = {
@@ -67,7 +67,7 @@ def load_cache_metadata(cache_dir):
     """
     metadata_path = os.path.join(cache_dir, METADATA_FILE)
     try:
-        metadata = pd.read_csv(metadata_path)
+        metadata = pd.read_csv(metadata_path, converters={"sources": pd.eval})
     # If the cache doesn't exist, create it
     except FileNotFoundError:
         metadata = pd.DataFrame(columns=METADATA_COLUMNS)
@@ -84,6 +84,7 @@ def store_cache_metadata(cache_dir, new_metadata, warnings=True):
     # First verify that the columns match
     new_columns = list(new_metadata.columns)
     if new_columns != METADATA_COLUMNS:
+        # TODO: This is potentially useless
         extra_columns = [c for c in new_columns if c not in METADATA_COLUMNS]
         missing_columns = [c for c in METADATA_COLUMNS if c not in new_columns]
         # Resample the metadata to include the correct columns
@@ -99,14 +100,47 @@ def store_cache_metadata(cache_dir, new_metadata, warnings=True):
                 logging.warning("Missing metadata columns %s", missing_columns)
 
     # Combine with existing metadata
-    metadata = load_cache_metadata(cache_dir).set_index("hash")
-    new_metadata = new_metadata.set_index("hash")
-    metadata = new_metadata.combine_first(metadata)
-    metadata = metadata.reset_index("hash")
+    old_metadata = load_cache_metadata(cache_dir)
+    new_metadata = new_metadata
+    metadata = combine_metadata(old_metadata, new_metadata)
 
     # Save the new metadata
     metadata_path = os.path.join(cache_dir, METADATA_FILE)
     metadata.to_csv(metadata_path, index=False)
+
+
+def combine_metadata(old_metadata, new_metadata):
+    """Combine existing metadata with new metadata column by column"""
+    # Extract the hashes
+    combined_hashes = list(set(list(old_metadata["hash"]) + list(new_metadata["hash"])))
+    combined_metadata = pd.DataFrame(columns=METADATA_COLUMNS)
+    combined_metadata["hash"] = combined_hashes
+    # Set the index to be the hash
+    combined_metadata = combined_metadata.set_index("hash")
+    old_metadata = old_metadata.set_index("hash")
+    new_metadata = new_metadata.set_index("hash")
+    # Combine column by column
+    for c in new_metadata.columns:
+        # Different columns are combined differently
+        old_column = old_metadata[c]
+        new_column = new_metadata[c]
+        # Sources are combined by adding to the list
+        if c == "sources":
+            old_new_df = pd.DataFrame({"old": old_column, "new": new_column})
+            print(old_new_df)
+            combine_sources = (
+                lambda r: []
+                if type(r["new"]) != list
+                else r["new"]
+                if type(r["old"]) != list
+                else r["old"] + r["new"]
+            )
+            combined_column = old_new_df.apply(combine_sources, axis=1)
+        # Otherwise new should override old
+        else:
+            combined_column = new_column.combine_first(old_column)
+        combined_metadata[c] = combined_column
+    return combined_metadata.reset_index("hash")
 
 
 def update_cache_filenames(cache_dir):
@@ -116,7 +150,10 @@ def update_cache_filenames(cache_dir):
     filenames = metadata["filename"]
     # Then generate what they should be
     hashes = metadata["hash"]
-    sources = metadata["source"]
+    sources = metadata["sources"]
+    # Hackyish fix to prune sources
+    get_first_source = lambda s: s[0] if type(s) == list and len(s) > 0 else np.nan
+    sources = sources.apply(get_first_source)
     source_to_fname = lambda x: re.sub(r"[^a-zA-Z0-9]", "_", str(x).lower())
     expected_filenames = sources.apply(source_to_fname)
     expected_filenames += "_" + hashes.str.slice(0, 4)
