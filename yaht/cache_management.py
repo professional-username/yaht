@@ -35,13 +35,9 @@ def store_cache_data(cache_dir, data_hash, data):
         pickle.dump(data, data_file)
 
     # Generate the new metadata TODO: Should maybe be in metadata storage
-    time_modified = datetime.datetime.now()
-    time_created = metadata.get("time_created", time_modified)
     new_metadata = {
         "hash": [data_hash],
         "filename": [data_filename],
-        "time_created": [time_created],
-        "time_modified": [time_modified],
     }
     new_metadata = pd.DataFrame.from_dict(new_metadata, orient="columns")
     store_cache_metadata(cache_dir, new_metadata, warnings=False)
@@ -74,8 +70,11 @@ def load_cache_metadata(cache_dir):
         os.mkdir(cache_dir)
         metadata.to_csv(metadata_path, index=False)
     # Some columns need to have specific datatypes
+    metadata["hash"] = metadata["hash"].astype("string")
+    metadata["filename"] = metadata["filename"].astype("string")
     metadata["time_created"] = pd.to_datetime(metadata["time_created"])
     metadata["time_modified"] = pd.to_datetime(metadata["time_modified"])
+
     return metadata
 
 
@@ -101,8 +100,18 @@ def store_cache_metadata(cache_dir, new_metadata, warnings=True):
 
     # Combine with existing metadata
     old_metadata = load_cache_metadata(cache_dir)
-    new_metadata = new_metadata
     metadata = combine_metadata(old_metadata, new_metadata)
+
+    # Make sure columns have correct default values
+    default_fname = lambda r: r["hash"] if pd.isnull(r["filename"]) else r["filename"]
+    metadata["filename"] = metadata.apply(default_fname, axis=1)
+    default_sources = lambda s: [] if type(s) is not list else s
+    metadata["sources"] = metadata["sources"].apply(default_sources)
+    modified_time = datetime.datetime.now()
+    default_time_modified = lambda t: modified_time
+    metadata["time_modified"] = metadata["time_modified"].apply(default_time_modified)
+    default_time_created = lambda t: t if pd.notnull(t) else modified_time
+    metadata["time_created"] = metadata["time_created"].apply(default_time_created)
 
     # Save the new metadata
     metadata_path = os.path.join(cache_dir, METADATA_FILE)
@@ -127,7 +136,6 @@ def combine_metadata(old_metadata, new_metadata):
         # Sources are combined by adding to the list
         if c == "sources":
             old_new_df = pd.DataFrame({"old": old_column, "new": new_column})
-            print(old_new_df)
             combine_sources = (
                 lambda r: []
                 if type(r["new"]) != list
@@ -195,16 +203,12 @@ def sync_cache_metadata(cache_dir):
         metadata.to_csv(metadata_path, index=False)
     # Add missing files
     unsaved_files = [f for f in files_in_cache if f not in recorded_files]
-    time_modified = datetime.datetime.now()
-    time_created = time_modified
     store_cache_metadata(
         cache_dir,
         pd.DataFrame(
             {
                 "hash": unsaved_files,
                 "filename": unsaved_files,
-                "time_modified": time_modified,
-                "time_created": time_created,
             }
         ),
     )

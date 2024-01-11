@@ -53,13 +53,48 @@ def test_store_metadata(cache_dir):
 
     # We should then be able to load the metadata
     loaded_metadata = CM.load_cache_metadata(cache_dir).set_index("hash")
-    print(loaded_metadata)
-    print(loaded_metadata.loc["SOME_HASH", "sources"])
-    print(type(loaded_metadata.loc["SOME_HASH", "sources"]))
     assert loaded_metadata.loc["SOME_HASH", "filename"] == "some_filename"
     assert loaded_metadata.loc["SOME_HASH", "sources"] == ["some_source"]
     assert loaded_metadata.loc["ANOTHER_HASH", "filename"] == "another_filename"
     assert loaded_metadata.loc["ANOTHER_HASH", "sources"] == ["another_source"]
+
+
+def test_default_values(cache_dir):
+    """
+    Check the datatypes of columns in the metadata
+    as well as the default 'empty' values
+    """
+    empty_metadata = CM.load_cache_metadata(cache_dir)
+
+    # Check dtypes where relevant
+    metadata_dtypes = empty_metadata.dtypes
+    assert pd.api.types.is_string_dtype(metadata_dtypes["hash"])
+    assert pd.api.types.is_string_dtype(metadata_dtypes["filename"])
+    assert pd.api.types.is_object_dtype(metadata_dtypes["sources"])  # Lists
+    assert pd.api.types.is_datetime64_any_dtype(metadata_dtypes["time_created"])
+    assert pd.api.types.is_datetime64_any_dtype(metadata_dtypes["time_modified"])
+
+    new_metadata = pd.DataFrame([{"hash": "SOME_HASH"}])
+    CM.store_cache_metadata(cache_dir, new_metadata)
+    loaded_metadata = CM.load_cache_metadata(cache_dir)
+
+    # Check dtypes are consistent after saving and loading
+    metadata_dtypes = loaded_metadata.dtypes
+    assert pd.api.types.is_string_dtype(metadata_dtypes["hash"])
+    assert pd.api.types.is_string_dtype(metadata_dtypes["filename"])
+    assert pd.api.types.is_object_dtype(metadata_dtypes["sources"])  # Lists
+    assert pd.api.types.is_datetime64_any_dtype(metadata_dtypes["time_created"])
+    assert pd.api.types.is_datetime64_any_dtype(metadata_dtypes["time_modified"])
+
+    # Check the empty / default values
+    loaded_metadata = loaded_metadata.set_index("hash")
+    assert loaded_metadata.loc["SOME_HASH", "filename"] == "SOME_HASH"
+    assert loaded_metadata.loc["SOME_HASH", "sources"] == []
+    assert loaded_metadata.loc["SOME_HASH", "time_created"] < datetime.datetime.now()
+    assert (
+        loaded_metadata.loc["SOME_HASH", "time_modified"]
+        == loaded_metadata.loc["SOME_HASH", "time_created"]
+    )
 
 
 def test_override_metadata(cache_dir):
