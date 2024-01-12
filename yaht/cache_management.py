@@ -30,17 +30,12 @@ def store_cache_data(cache_dir, data_hash, data):
 
     # Create a file in the cache dir with the data
     data_filename = metadata.get("filename", data_hash)
-    # data_filename = os.path.join(cache_dir, data_hash)
     with open(os.path.join(cache_dir, data_filename), "wb") as data_file:
         pickle.dump(data, data_file)
 
-    # Generate the new metadata TODO: Should maybe be in metadata storage
-    new_metadata = {
-        "hash": [data_hash],
-        "filename": [data_filename],
-    }
-    new_metadata = pd.DataFrame.from_dict(new_metadata, orient="columns")
-    store_cache_metadata(cache_dir, new_metadata, warnings=False)
+    # Save relevant meatadata
+    new_metadata = pd.DataFrame.from_dict({"hash": [data_hash]}, orient="columns")
+    store_cache_metadata(cache_dir, new_metadata)
 
 
 def load_cache_data(cache_dir, data_hash):
@@ -69,6 +64,7 @@ def load_cache_metadata(cache_dir):
         metadata = pd.DataFrame(columns=METADATA_COLUMNS)
         os.mkdir(cache_dir)
         metadata.to_csv(metadata_path, index=False)
+
     # Some columns need to have specific datatypes
     metadata["hash"] = metadata["hash"].astype("string")
     metadata["filename"] = metadata["filename"].astype("string")
@@ -78,40 +74,36 @@ def load_cache_metadata(cache_dir):
     return metadata
 
 
-def store_cache_metadata(cache_dir, new_metadata, warnings=True):
+def store_cache_metadata(cache_dir, new_metadata):
     """Add one or more rows to the metadata"""
     # First verify that the columns match
     new_columns = list(new_metadata.columns)
     if new_columns != METADATA_COLUMNS:
-        # TODO: This is potentially useless
-        extra_columns = [c for c in new_columns if c not in METADATA_COLUMNS]
         missing_columns = [c for c in METADATA_COLUMNS if c not in new_columns]
         # Resample the metadata to include the correct columns
         new_metadata[missing_columns] = None
         new_metadata = new_metadata[METADATA_COLUMNS]
         # Ensure columns abide to certain formatting
         new_metadata["hash"] = new_metadata["hash"].apply(str.strip)
-        # Send warnings if this is necessary
-        if warnings:
-            if len(extra_columns) > 0:
-                logging.warning("Tried to store metadata columns %s", extra_columns)
-            if len(missing_columns) > 0:
-                logging.warning("Missing metadata columns %s", missing_columns)
+
+    # Make sure columns have correct default values
+    default_fname = lambda r: r["hash"] if pd.isnull(r["filename"]) else r["filename"]
+    default_sources = lambda s: [] if type(s) is not list else s
+    modified_time = datetime.datetime.now()
+    default_time_modified = lambda t: modified_time
+    default_time_created = lambda t: t if pd.notnull(t) else modified_time
+    new_metadata["filename"] = new_metadata.apply(default_fname, axis=1)
+    new_metadata["sources"] = new_metadata["sources"].apply(default_sources)
+    new_metadata["time_modified"] = new_metadata["time_modified"].apply(
+        default_time_modified
+    )
+    new_metadata["time_created"] = new_metadata["time_created"].apply(
+        default_time_created
+    )
 
     # Combine with existing metadata
     old_metadata = load_cache_metadata(cache_dir)
     metadata = combine_metadata(old_metadata, new_metadata)
-
-    # Make sure columns have correct default values
-    default_fname = lambda r: r["hash"] if pd.isnull(r["filename"]) else r["filename"]
-    metadata["filename"] = metadata.apply(default_fname, axis=1)
-    default_sources = lambda s: [] if type(s) is not list else s
-    metadata["sources"] = metadata["sources"].apply(default_sources)
-    modified_time = datetime.datetime.now()
-    default_time_modified = lambda t: modified_time
-    metadata["time_modified"] = metadata["time_modified"].apply(default_time_modified)
-    default_time_created = lambda t: t if pd.notnull(t) else modified_time
-    metadata["time_created"] = metadata["time_created"].apply(default_time_created)
 
     # Save the new metadata
     metadata_path = os.path.join(cache_dir, METADATA_FILE)
@@ -130,25 +122,46 @@ def combine_metadata(old_metadata, new_metadata):
     new_metadata = new_metadata.set_index("hash")
     # Combine column by column
     for c in new_metadata.columns:
-        # Different columns are combined differently
         old_column = old_metadata[c]
         new_column = new_metadata[c]
-        # Sources are combined by adding to the list
-        if c == "sources":
-            old_new_df = pd.DataFrame({"old": old_column, "new": new_column})
-            combine_sources = (
-                lambda r: []
-                if type(r["new"]) != list
-                else r["new"]
-                if type(r["old"]) != list
-                else r["old"] + r["new"]
-            )
-            combined_column = old_new_df.apply(combine_sources, axis=1)
-        # Otherwise new should override old
-        else:
-            combined_column = new_column.combine_first(old_column)
+        combined_column = combine_metadata_columns(c, old_column, new_column)
         combined_metadata[c] = combined_column
+
     return combined_metadata.reset_index("hash")
+
+
+def combine_metadata_columns(c_name, old_column, new_column):
+    """Combine different columns based on the data they are supposed to store"""
+    # Detrmine the merge function and default empty value for the column
+    match c_name:
+        case "sources":
+            default_value = []
+            combine_function = lambda old, new: list(set(old + new))
+        case "time_created":
+            default_value = pd.NaT
+            combine_function = lambda old, new: min(old, new)
+        case "time_modified":
+            default_value = pd.NaT
+            combine_function = lambda old, new: max(old, new)
+        case _:
+            default_value = np.nan
+            combine_function = lambda old, new: new
+
+    # But this will only apply to rows where both old and new columns have values
+    is_empty = lambda x: (len(x) == 0) if type(x) == list else pd.isnull(x)
+    merge_function = (
+        lambda r: default_value
+        if is_empty(r["new"]) and is_empty(r["old"])
+        else r["new"]
+        if is_empty(r["old"])
+        else combine_function(r["old"], r["new"])
+    )
+
+    # Put the columns into a single df and combine
+    old_new_df = pd.DataFrame({"old": old_column, "new": new_column})
+    combined_column = old_new_df.apply(merge_function, axis=1)
+
+    return combined_column
 
 
 def update_cache_filenames(cache_dir):
@@ -203,12 +216,4 @@ def sync_cache_metadata(cache_dir):
         metadata.to_csv(metadata_path, index=False)
     # Add missing files
     unsaved_files = [f for f in files_in_cache if f not in recorded_files]
-    store_cache_metadata(
-        cache_dir,
-        pd.DataFrame(
-            {
-                "hash": unsaved_files,
-                "filename": unsaved_files,
-            }
-        ),
-    )
+    store_cache_metadata(cache_dir, pd.DataFrame({"hash": unsaved_files}))
