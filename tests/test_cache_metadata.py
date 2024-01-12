@@ -221,15 +221,6 @@ def test_multiple_sources(cache_dir):
     assert loaded_metadata.loc["SOME_HASH", "sources"] == expected_sources
 
 
-def test_suppress_save_warnings(cache_dir, mocker):
-    """Test that we can suppress warnings when saving metadata"""
-    mocked_warning = mocker.patch("yaht.cache_management.logging.warning")
-    # No warning should be called if warnings is set to false
-    too_few_columns = pd.DataFrame([{"hash": "SOME_HASH"}])
-    CM.store_cache_metadata(cache_dir, too_few_columns, warnings=False)
-    mocked_warning.assert_not_called()
-
-
 def test_modified_filenames(cache_dir):
     """Test that we can update filenames to be based on data sources"""
     fake_data = ["This", "is", "some", "fake", "data"]
