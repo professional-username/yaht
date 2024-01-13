@@ -37,3 +37,6 @@ ujson = "^5.8.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+yaht = "yaht.cli:cli"
