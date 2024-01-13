@@ -46,13 +46,14 @@ class Laboratory:
         CM.sync_cache_metadata(self.cache_dir)
         self.determine_unrun_processes()
         # Store metadata generated in the running of the experiments
-        generated_metadata = pd.DataFrame(columns=["hash", "source"])
+        generated_metadata = pd.DataFrame(columns=["hash", "sources"])
 
         # Sort by experiment, trial and order, and then run
         sorted_structure = self.structure.sort_values(
             by=["experiment", "trial", "order"]
         )
         for idx, proc_row in sorted_structure.iterrows():
+            # experiment_metadata = pd.DataFrame(columns=["hash", "sources"])
             if proc_row["has_run"]:
                 continue
             # Extract all relevant parameters and run the process
@@ -75,13 +76,11 @@ class Laboratory:
                 proc_row["name"],
             )
             novel_metadata = pd.DataFrame(
-                {"hash": result_hashes, "source": [proc_source] * len(result_hashes)}
+                {"hash": result_hashes, "sources": [[proc_source]] * len(result_hashes)}
             )
-            generated_metadata = pd.concat(
-                [generated_metadata, novel_metadata], ignore_index=True
-            )
+            generated_metadata = CM.combine_metadata(generated_metadata, novel_metadata)
         # Store the generated metadata in the cache
-        CM.store_cache_metadata(self.cache_dir, generated_metadata, warnings=False)
+        CM.store_cache_metadata(self.cache_dir, generated_metadata)
         CM.update_cache_filenames(self.cache_dir)
 
     def get_data(self, data_hash):
