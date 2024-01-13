@@ -150,10 +150,13 @@ def combine_metadata_columns(c_name, old_column, new_column):
     # But this will only apply to rows where both old and new columns have values
     is_empty = lambda x: (len(x) == 0) if type(x) == list else pd.isnull(x)
     merge_function = (
+        # Default if both columns "empty"
         lambda r: default_value
         if is_empty(r["new"]) and is_empty(r["old"])
-        else r["new"]
-        if is_empty(r["old"])
+        # If only one is empty, use non-empty one
+        else (r["new"] if is_empty(r["old"]) else r["old"])
+        if is_empty(r["new"]) or is_empty(r["old"])
+        # If both aren't empty, combine them as necessary
         else combine_function(r["old"], r["new"])
     )
 
