@@ -88,9 +88,10 @@ def test_lab_metadata_generation(mock_config, mock_all_procs):
     lab = Laboratory(mock_config)
     lab.run_experiments()
     cache_dir = mock_config["settings"]["cache_dir"]
-    time.sleep(0.3)  # Wait for data to be saved
     cached_metadata = CM.load_cache_metadata(cache_dir)
 
+    # Drop the example row
+    cached_metadata = cached_metadata[cached_metadata["hash"] != "example_key"]
     # Check that things like source and filename are set correctly
     assert ["some_lab_name/some_experiment.control.foo"] in list(
         cached_metadata["sources"]
