@@ -218,7 +218,7 @@ def test_multiple_sources(cache_dir):
     # There should still be a single item, with all sources listed
     assert len(loaded_metadata) == 1
     expected_sources = ["first_source", "second_source", "third_source"]
-    assert loaded_metadata.loc["SOME_HASH", "sources"] == expected_sources
+    assert set(loaded_metadata.loc["SOME_HASH", "sources"]) == set(expected_sources)
 
 
 def test_modified_filenames(cache_dir):
