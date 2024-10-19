@@ -20,7 +20,7 @@
         onlyGroups = [ ];
         extras = [ ];
         allExtras = false;
-        verbosity = "no";
+        verbosity = "more";
       };
       activate.enable = true;
       package = pkgs.poetry;
