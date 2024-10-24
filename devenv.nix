@@ -3,7 +3,7 @@
 {
   env.GREET = "yaht: yet another hyperparameter tuner";
 
-  packages = [ pkgs.git ];
+  packages = with pkgs; [ git python311Packages.python-lsp-server ];
 
   languages.python = {
     enable = true;
