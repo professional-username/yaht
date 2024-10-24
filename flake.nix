@@ -29,5 +29,6 @@
         # section of your pyproject.toml
         program = "${yaht}/bin/yaht";
       };
+      packages.${system}.default = yaht;
     };
 }
