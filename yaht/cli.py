@@ -22,7 +22,7 @@ def cli():
         prog="Yaht",
         description="Yet another hyperparameter tuner",
     )
-    subparsers = parser.add_subparsers()
+    subparsers = parser.add_subparsers(dest="command")
     # Init subcommand to scaffold a directory for yaht
     init_parser = subparsers.add_parser("init", help="Scaffold yaht.yaml etc")
     # TODO: run command, add_file command
@@ -44,7 +44,7 @@ def gen_scaffold():
     if not os.path.exists(".git/"):
         return
     with open(".gitignore", "a") as f:
-        f.write(".yaht_cache")
+        f.write("\n\n.yaht_cache")
 
 
 if __name__ == "__main__":
