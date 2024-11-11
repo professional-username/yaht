@@ -18,8 +18,8 @@ def test_scaffold(mock_working_directory):
     cli.gen_scaffold()
 
     # Two files should be created
-    assert os.path.isfile("./yaht.yaml")
-    assert os.path.exists("./.yaht_cache/")
+    assert os.path.isfile(cli.DEFAULT_CONFIG_FILE)
+    assert os.path.exists(cli.DEFAULT_CACHE_DIR)
 
 
 def test_git_scaffold(mock_working_directory):
@@ -30,7 +30,7 @@ def test_git_scaffold(mock_working_directory):
     assert os.path.isfile("./.gitignore")
     with open("./.gitignore", "r") as f:
         gitgnore_text = f.readlines()
-    assert gitgnore_text[-1] == ".yaht_cache"
+    assert gitgnore_text[-1] == cli.DEFAULT_CACHE_DIR
 
 
 def test_not_git_scaffold(mock_working_directory):
@@ -44,10 +44,30 @@ def test_existing_git_scaffold(mock_working_directory):
     """Test that scaffolding adds a line to an existing gitignore"""
     os.mkdir("./.git/")
     with open("./.gitignore", "w") as f:
-        f.write("some_folder\n")
+        f.write("some_folder\nSomethingElse")
 
     cli.gen_scaffold()
     # If a .gitignore already exists, .yaht_cache should be added to it
     with open("./.gitignore", "r") as f:
         gitgnore_text = f.readlines()
-    assert gitgnore_text[-1] == ".yaht_cache"
+    assert gitgnore_text[-1] == cli.DEFAULT_CACHE_DIR
+
+
+def test_changing_environment_variables(mock_working_directory):
+    """Test that we can change the setup of the scaffold by changing env vars"""
+    os.environ["YAHT_CONFIG_FILE"] = "mock_config.yaml"
+    os.environ["YAHT_CACHE_DIR"] = "mock_cache"
+    cli.gen_scaffold()
+
+    # Two files should be created
+    assert os.path.isfile("mock_config.yaml")
+    assert os.path.exists("mock_cache/")
+
+
+def test_changing_function_variables(mock_working_directory):
+    """Test that we can change the setup of the scaffold by changing function vars"""
+    cli.gen_scaffold(config_file="mock_config.yaml", cache_dir="mock_cache")
+
+    # Two files should be created
+    assert os.path.isfile("mock_config.yaml")
+    assert os.path.exists("mock_cache/")
