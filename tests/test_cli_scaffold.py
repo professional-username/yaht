@@ -53,10 +53,10 @@ def test_existing_git_scaffold(mock_working_directory):
     assert gitgnore_text[-1] == cli.DEFAULT_CACHE_DIR
 
 
-def test_changing_environment_variables(mock_working_directory):
+def test_changing_environment_variables(mock_working_directory, monkeypatch):
     """Test that we can change the setup of the scaffold by changing env vars"""
-    os.environ["YAHT_CONFIG_FILE"] = "mock_config.yaml"
-    os.environ["YAHT_CACHE_DIR"] = "mock_cache"
+    monkeypatch.setenv("YAHT_CONFIG_FILE", "mock_config.yaml")
+    monkeypatch.setenv("YAHT_CACHE_DIR", "mock_cache")
     cli.gen_scaffold()
 
     # Two files should be created
