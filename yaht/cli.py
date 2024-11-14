@@ -27,10 +27,21 @@ def cli():
         prog="Yaht",
         description="Yet another hyperparameter tuner",
     )
+    parser.add_argument("--config", help="Set custom config path")
+    parser.add_argument("--cache", help="Set custom cache path")
     subparsers = parser.add_subparsers(dest="command")
     # Init subcommand to scaffold a directory for yaht
-    init_parser = subparsers.add_parser("init", help="Scaffold yaht.yaml etc")
-    # TODO: run command, add_file command
+    init_parser = subparsers.add_parser("init", help="Scaffold current folder for yaht")
+    add_file_parser = subparsers.add_parser("add", help="Add a file to the cache")
+    add_file_parser.add_argument("path", help="File to add")
+    add_file_parser.add_argument(
+        "-m", "--move", help="Delete original file", action="store_true"
+    )
+
+    run_parser = subparsers.add_parser(
+        "run", help="Run experiments specified in the config"
+    )
+    # TODO: run command
     # ALso TODO: Default functions / values
     # Also? : Result functions
 
@@ -38,6 +49,8 @@ def cli():
 
     if args.command == "init":
         gen_scaffold()
+    if args.command == "add":
+        add_file(args.path)
 
 
 def gen_scaffold(config_file=DEFAULT_CONFIG_FILE, cache_dir=DEFAULT_CACHE_DIR):
