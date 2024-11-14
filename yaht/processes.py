@@ -29,3 +29,19 @@ def find_processes():
             spec = importlib.util.spec_from_file_location(module_name, file_path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
+
+
+# Collection of example processes
+@register_process
+def return_true():
+    return True
+
+
+@register_process
+def return_inverse(input_value):
+    return -input_value
+
+
+@register_process
+def return_n(n=0):
+    return n
