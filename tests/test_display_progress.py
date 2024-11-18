@@ -13,26 +13,26 @@ def test_progress_start_stop():
 
 def test_progress_update():
     """Test that we can send a progress update to the display"""
-    # The full range of variables that the progress update should accept
-    new_progress_update = {
-        "lab_name": "FOOBAR",
-        "process_count": 10,
-    }
-
-    # TODO: What exactly should be passed to progress_update()??
-
     disp = Display()
     disp.progress_start()
-    disp.progress_update(**new_progress_update)
-    disp.progress_end()
+    # Two empty types of progress updates should work here
+    disp.progress_update(overall_progress={}, process_progress={}, metadata={})
+    disp.progress_update()
+    disp.progress_stop()
 
 
-def test_progressive_progress_update():
-    """Test that we can send a progress update for only a single variable"""
+def test_progress_loop():
+    """Test sending progress updated in a loop, as we might in practice"""
     disp = Display()
     disp.progress_start()
-    disp.progress_update(lab_name="FOOBAR", lab_length=1)
-    disp.progress_update(lab_progress=1, experiment_name="foo", experiment_length=3)
-    disp.progress_update(experiment_progress=1, trial_name="bar", trial_length=2)
-    disp.progress_update(trial_progress=1, process_name="foobar", process_length=2)
-    disp.progress_update(process_progress=2)
+
+    # Run a loop and send some data each loop
+    for i in range(10):
+        disp.progress_update(
+            overall_progress={
+                "total": 10,
+                "current": i,
+            }
+        )
+
+    disp.progress_stop()
