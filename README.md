@@ -4,11 +4,24 @@ Yet Another Hyperparameter Tuner - A flexible tool for managing hyperparameter e
 
 ## Development Setup
 
-This project uses [devenv](https://devenv.sh/) for development environment management. To get started:
+This project uses [devenv](https://devenv.sh/) for development environment management.
+
+### Prerequisites
 
 1. Install devenv following the [official installation guide](https://devenv.sh/getting-started/)
 2. Clone this repository
 3. Run `devenv up` in the project directory to set up the development environment
+
+### Testing
+
+During development, you can run the test suite using the provided script:
+
+```bash
+devenv shell project-test
+```
+
+This will run the full pytest suite in the development environment.
+
 
 ## CLI Usage
 
@@ -37,30 +50,19 @@ Options:
 - `--config`: Specify a custom config file location (default: yaht.yaml)
 - `--cache`: Specify a custom cache directory (default: .yaht_cache)
 
-## Development
 
-### Testing
-
-During development, you can run the test suite using the provided script:
-
-```bash
-devenv shell project-test
-```
-
-This will run the full pytest suite in the development environment.
-
-### Installation
+## Installation
 
 Yaht can be installed as a Nix flake. To install it in your system:
 
 ```bash
-nix profile install github:your-username/yaht
+nix profile install github:professional-username/yaht
 ```
 
 Or to run it directly without installing:
 
 ```bash
-nix run github:your-username/yaht
+nix run github:professional-username/yaht
 ```
 
 ## Project Status
