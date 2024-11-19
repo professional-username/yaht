@@ -1,6 +1,6 @@
 # Yaht
 
-Yet Another Hyperparameter Tweaker - A flexible tool for managing hyperparameter experiments.
+Yet Another Hyperparameter Tuner - A flexible tool for managing hyperparameter experiments.
 
 ## Development Setup
 
@@ -14,12 +14,12 @@ This project uses [devenv](https://devenv.sh/) for development environment manag
 
 Yaht provides a command-line interface for managing experiments. Currently implemented commands:
 
-### Scaffold Generation
+### Initialize Project
 
-Generate a new experiment scaffold:
+Initialize a new yaht project in the current directory:
 
 ```bash
-yaht gen-scaffold [--config-file CONFIG_FILE] [--cache-dir CACHE_DIR]
+yaht init [--config CONFIG] [--cache CACHE]
 ```
 
 This creates the basic directory structure and configuration files for a new experiment.
@@ -29,13 +29,13 @@ This creates the basic directory structure and configuration files for a new exp
 Add files to your experiment:
 
 ```bash
-yaht add-file PATH [--move] [--config-file CONFIG_FILE] [--cache-dir CACHE_DIR]
+yaht add PATH [-m/--move] [--config CONFIG] [--cache CACHE]
 ```
 
 Options:
-- `--move`: Move the file instead of copying
-- `--config-file`: Specify a custom config file location
-- `--cache-dir`: Specify a custom cache directory
+- `-m/--move`: Move the file instead of copying
+- `--config`: Specify a custom config file location (default: yaht.yaml)
+- `--cache`: Specify a custom cache directory (default: .yaht_cache)
 
 ## Project Status
 
