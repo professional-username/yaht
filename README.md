@@ -37,6 +37,32 @@ Options:
 - `--config`: Specify a custom config file location (default: yaht.yaml)
 - `--cache`: Specify a custom cache directory (default: .yaht_cache)
 
+## Development
+
+### Testing
+
+During development, you can run the test suite using the provided script:
+
+```bash
+devenv shell project-test
+```
+
+This will run the full pytest suite in the development environment.
+
+### Installation
+
+Yaht can be installed as a Nix flake. To install it in your system:
+
+```bash
+nix profile install github:your-username/yaht
+```
+
+Or to run it directly without installing:
+
+```bash
+nix run github:your-username/yaht
+```
+
 ## Project Status
 
 This project is under active development. More features coming soon!
