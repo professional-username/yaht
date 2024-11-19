@@ -1,4 +1,4 @@
-# Yaht
+# Yaht ⛵
 
 ## Yet Another Hyperparameter Tuner
 _A smarter way to manage hyperparameter experimentation_
@@ -126,7 +126,7 @@ This project uses [devenv](https://devenv.sh/) for development environment manag
 
 1. Install devenv following the [official installation guide](https://devenv.sh/getting-started/)
 2. Clone this repository
-3. Run `devenv up` in the project directory to set up the development environment
+3. Run `devenv shell` in the project directory to set up the development environment
 
 ### Testing
 
