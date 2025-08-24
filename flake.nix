@@ -15,6 +15,7 @@
       yaht = mkPoetryApplication {
         projectDir = ./.;
         preferWheels = true; # Hacky fix but it works
+        python = pkgs.python311;
         # overrides = poetry2nix.defaultPoetryOverrides.extend (final: prev: {
         #   django-floppyforms = prev.django-floppyforms.overridePythonAttrs
         #     (old: {
