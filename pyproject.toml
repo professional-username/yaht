@@ -6,7 +6,7 @@ authors = ["basilisk <d0ix9oqh@anonaddy.me>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "3.11.*"
 setuptools = "*"
 contourpy = "^1.2.0"
 cycler = "^0.12.1"
