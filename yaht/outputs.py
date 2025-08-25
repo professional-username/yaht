@@ -13,6 +13,10 @@ def register_output(output):
 
 def get_output(output_name):
     """Function to return a output by name"""
+    # Handle "default" outputs
+    if output_name == None:
+        return print
+
     return OUTPUTS[output_name]
 
 

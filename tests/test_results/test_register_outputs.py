@@ -8,5 +8,11 @@ def test_register_output():
     def foo():
         return "bar"
 
-    proc = get_output("foo")
-    assert proc == foo
+    out = get_output("foo")
+    assert out == foo
+
+
+def test_default_output():
+    """Test what happens when we retrieve 'None' as the output name"""
+    out = get_output(None)
+    assert out == print
