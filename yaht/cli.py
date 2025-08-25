@@ -6,12 +6,16 @@ import argparse
 from matplotlib import pyplot as plt
 from yaht.config_processing import read_config_file
 from yaht.processes import find_processes
+from yaht.outputs import output_results
 from yaht.laboratory import Laboratory
 
 DEFAULT_CONFIG_FILE = "yaht.yaml"
 DEFAULT_CACHE_DIR = ".yaht_cache"
 
 DEFAULT_CONFIG = """
+SETTINGS:
+  cache_dir: .yaht_cache
+
 default_experiment:
   results: M, X
 
@@ -52,9 +56,6 @@ def cli():
     run_parser = subparsers.add_parser(
         "run", help="Run experiments specified in the config"
     )
-    # TODO: run command
-    # ALso TODO: Default functions / values
-    # Also? : Result functions
 
     args = parser.parse_args()
 
@@ -112,6 +113,27 @@ def add_file(
     config["SOURCES"] |= {file_name: "file:%s" % file_name}
     with open(config_file, "w") as config_stream:
         yaml.dump(config, config_stream, default_flow_style=False)
+
+
+def run_experiments(config_file=DEFAULT_CONFIG_FILE, cache_dir=DEFAULT_CACHE_DIR):
+    """Run all the experiments specified in the config file"""
+    print("Running experiments...")
+    config = read_config_file(config_file)
+    print("Config read...")
+    lab = Laboratory(config)
+    # Run the experiments
+    lab.run_experiments()
+    print("Experiments ran!!")
+
+
+def output_experiment_results(config_file=DEFAULT_CONFIG_FILE):
+    """Load the results from any experiments performed as defined in the config file"""
+    config = read_config_file(config_file)
+    lab = Laboratory(config)
+    # Get the results and pass them to output functions
+    results = lab.get_results()
+    print(results)
+    output_results(results)
 
 
 if __name__ == "__main__":

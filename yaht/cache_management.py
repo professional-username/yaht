@@ -62,7 +62,7 @@ def load_cache_metadata(cache_dir):
     # If the cache doesn't exist, create it
     except FileNotFoundError:
         metadata = pd.DataFrame(columns=METADATA_COLUMNS)
-        os.mkdir(cache_dir)
+        os.makedirs(cache_dir, exist_ok=True)
         metadata.to_csv(metadata_path, index=False)
 
     # Some columns need to have specific datatypes
@@ -151,13 +151,17 @@ def combine_metadata_columns(c_name, old_column, new_column):
     is_empty = lambda x: (len(x) == 0) if type(x) == list else pd.isnull(x)
     merge_function = (
         # Default if both columns "empty"
-        lambda r: default_value
-        if is_empty(r["new"]) and is_empty(r["old"])
-        # If only one is empty, use non-empty one
-        else (r["new"] if is_empty(r["old"]) else r["old"])
-        if is_empty(r["new"]) or is_empty(r["old"])
-        # If both aren't empty, combine them as necessary
-        else combine_function(r["old"], r["new"])
+        lambda r: (
+            default_value
+            if is_empty(r["new"]) and is_empty(r["old"])
+            # If only one is empty, use non-empty one
+            else (
+                (r["new"] if is_empty(r["old"]) else r["old"])
+                if is_empty(r["new"]) or is_empty(r["old"])
+                # If both aren't empty, combine them as necessary
+                else combine_function(r["old"], r["new"])
+            )
+        )
     )
 
     # Put the columns into a single df and combine

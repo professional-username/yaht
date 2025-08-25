@@ -10,6 +10,9 @@ class Laboratory:
         settings = config.get("settings", {})
         self.lab_name = settings.get("lab_name", "lab")
         self.cache_dir = settings.get("cache_dir", None)
+        # Override cache dir with custom option if necessary
+        # if cache_dir:
+        #     self.cache_dir = cache_dir
         self.existing_metadata = CM.load_cache_metadata(self.cache_dir)
         # Record the output function names specified in the config
         self.outputs = config.get("outputs", {})
