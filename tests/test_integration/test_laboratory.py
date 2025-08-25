@@ -145,11 +145,27 @@ def test_multi_trial_lab(mock_all_procs):
     shutil.rmtree(new_dir)
 
 
-def test_multi_experiment_lab():
-    """Test a config with multiple experiments"""
-    new_dir, cache_dir, source_fname = create_mock_cache_file()
-    config = create_mock_base_config(cache_dir, source_fname)
+# def test_multi_experiment_lab():
+#     """Test a config with multiple experiments"""
+#     new_dir, cache_dir, source_fname = create_mock_cache_file()
+#     config = create_mock_base_config(cache_dir, source_fname)
 
 
-def test_only_run_needed_processes():
-    pass
+# def test_only_run_needed_processes():
+#     pass
+
+
+def test_use_custom_output(mock_config, mock_all_procs):
+    """
+    Specify a custom output function for the result
+    and ensure that it is retrieved and given in the result df
+    """
+    # Add it to the config specification
+    mock_config["outputs"] = {"bar_result": "bar_output_function"}
+    # Run and get results
+    lab = Laboratory(mock_config)
+    lab.run_experiments()
+    results = lab.get_results()
+
+    # The results should have a column specifying the output function
+    assert results["output"][0] == "bar_output_function"

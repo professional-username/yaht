@@ -3,8 +3,6 @@ import pandas as pd
 import yaht.cache_management as CM
 from yaht.structure import generate_laboratory_structure
 
-# from yaht.experiment import Experiment, generate_experiment_structure
-
 
 class Laboratory:
     def __init__(self, config):
@@ -13,6 +11,8 @@ class Laboratory:
         self.lab_name = settings.get("lab_name", "lab")
         self.cache_dir = settings.get("cache_dir", None)
         self.existing_metadata = CM.load_cache_metadata(self.cache_dir)
+        # Record the output function names specified in the config
+        self.outputs = config.get("outputs", {})
 
         # Make sure all sources are stated as hashes
         source_hashes = config.get("sources", {})
@@ -125,5 +125,7 @@ class Laboratory:
             new_rows["trial"] = proc_row["trial"]
             new_rows["process"] = proc_row["name"]
             new_rows["name"] = proc_row["result_names"]
+            new_rows["output"] = [self.outputs.get(n, None) for n in new_rows["name"]]
+            # Combine with the existing rows
             result_df = pd.concat([result_df, new_rows], ignore_index=True)
         return result_df
