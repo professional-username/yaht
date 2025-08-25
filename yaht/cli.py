@@ -19,25 +19,36 @@ def cli():
     )
     parser.add_argument("--config", help="Set custom config path")
     parser.add_argument("--cache", help="Set custom cache path")
+
     subparsers = parser.add_subparsers(dest="command")
     # Init subcommand to scaffold a directory for yaht
     init_parser = subparsers.add_parser("init", help="Scaffold current folder for yaht")
+    # Add file subcommand to add files to the cache
     add_file_parser = subparsers.add_parser("add", help="Add a file to the cache")
     add_file_parser.add_argument("path", help="File to add")
     add_file_parser.add_argument(
-        "-m", "--move", help="Delete original file", action="store_true"
+        "-m",
+        "--move",
+        help="Delete original file",
+        action="store_true",
     )
-
+    # Run parser to run experiments
     run_parser = subparsers.add_parser(
         "run", help="Run experiments specified in the config"
     )
+    # Results parser to get previous results
+    result_parser = subparsers.add_parser("results", help="Output latest results")
 
     args = parser.parse_args()
-
+    # Execute relevant commands
     if args.command == "init":
         gen_scaffold()
     if args.command == "add":
         add_file(args.path)
+    if args.command == "run":
+        run_experiments()
+    if args.command == "results":
+        output_experiment_results()
 
 
 def gen_scaffold(config_file=DEFAULT_CONFIG_FILE, cache_dir=DEFAULT_CACHE_DIR):
