@@ -273,6 +273,57 @@ def test_specifying_global_results():
     assert config == expected_config
 
 
+def test_specifying_result_functions():
+    """
+    The functions by which results are outputted to the outside world
+    can be registered and specified
+    in the same way that external sources can be
+    """
+    yaml_config = "\n".join(
+        [
+            "SOURCES:",
+            '  some_file: "file:example_file"',
+            "some_experiment:",
+            "  results: foo, bar_two",
+            "",
+            "  structure:",
+            "    foo: some_file",
+            "    bar: some_file -> bar_one, bar_two",
+            # A separate section specifies results with custom output functions
+            "RESULTS:",
+            "  foo: foo_output",
+        ]
+    )
+    config_fname = gen_config_file(yaml_config)
+
+    config = clean_dict(read_config_file(config_fname))
+    expected_config = {
+        "sources": {"some_file": "file:example_file"},
+        "experiments": {
+            "some_experiment": {
+                "structure": {
+                    "foo": {
+                        "sources": ["some_file"],
+                        "function": "foo",
+                        "results": ["foo"],
+                    },
+                    "bar": {
+                        "sources": ["some_file"],
+                        "results": ["bar_one", "bar_two"],
+                        "function": "bar",
+                    },
+                },
+                "results": ["foo", "bar_two"],
+            }
+        },
+        # The results dictionary should have the specified result functions
+        "results": {
+            "foo": "foo_output",
+        },
+    }
+    assert config == expected_config
+
+
 def test_setting_process_functions():
     """Test overriding the function that a process represents"""
     yaml_config = "\n".join(
