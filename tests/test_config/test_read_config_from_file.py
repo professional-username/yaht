@@ -290,7 +290,7 @@ def test_specifying_result_functions():
             "    foo: some_file",
             "    bar: some_file -> bar_one, bar_two",
             # A separate section specifies results with custom output functions
-            "RESULTS:",
+            "OUTPUTS:",
             "  foo: foo_output",
         ]
     )
@@ -316,8 +316,8 @@ def test_specifying_result_functions():
                 "results": ["foo", "bar_two"],
             }
         },
-        # The results dictionary should have the specified result functions
-        "results": {
+        # The results dictionary should have the specified output functions
+        "outputs": {
             "foo": "foo_output",
         },
     }

@@ -20,8 +20,8 @@ def read_config_file(config_fname):
                 config["sources"] = value
             case "SETTINGS":
                 config["settings"] = value
-            case "RESULTS":
-                config["results"] = value
+            case "OUTPUTS":
+                config["outputs"] = value
             # If they don't fall into one of the above categories,
             # they represent an experiment
             case _:
