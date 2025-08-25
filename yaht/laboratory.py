@@ -2,14 +2,15 @@
 import pandas as pd
 import yaht.cache_management as CM
 from yaht.structure import generate_laboratory_structure
+from yaht.defaults import DEFAULT_CACHE_DIR
 
 
 class Laboratory:
-    def __init__(self, config):
+    def __init__(self, config, cache_dir=None):
         # Get and set up general settings etc
         settings = config.get("settings", {})
         self.lab_name = settings.get("lab_name", "lab")
-        self.cache_dir = settings.get("cache_dir", None)
+        self.cache_dir = settings.get("cache_dir", DEFAULT_CACHE_DIR)
         # Override cache dir with custom option if necessary
         # if cache_dir:
         #     self.cache_dir = cache_dir
