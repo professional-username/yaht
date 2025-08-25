@@ -5,7 +5,6 @@ import shutil
 import argparse
 from matplotlib import pyplot as plt
 from yaht.config_processing import read_config_file
-from yaht.result_handling import plot_results
 from yaht.processes import find_processes
 from yaht.laboratory import Laboratory
 

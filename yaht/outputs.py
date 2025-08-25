@@ -32,3 +32,18 @@ def find_outputs():
             spec = importlib.util.spec_from_file_location(module_name, file_path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
+
+
+def output_results(result_df):
+    """
+    Process a result df row by row;
+    for each row find the correct output process and send the results to it
+    """
+    for i, result_row in result_df.iterrows():
+        # Spereate the data, metadata and output function
+        output_name = result_row.pop("output")
+        result_value = result_row.pop("value")
+        result_metadata = result_row.to_dict()
+        # Retrieve and utilize output funciton
+        output_function = get_output(output_name)
+        output_function(result_value, result_metadata)
