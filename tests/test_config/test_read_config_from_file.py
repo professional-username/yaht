@@ -17,7 +17,8 @@ def gen_config_file(config):
 
 def clean_dict(d):
     """
-    Recursively remove all keys with values that are None, empty collections etc. from a dictionary.
+    Recursively remove all keys with values that are None,
+    empty collections etc. from a dictionary.
     For easier comparison between generated and expected configs
     """
     if not isinstance(d, (dict, list)):
