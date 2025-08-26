@@ -4,6 +4,7 @@ import yaml
 import shutil
 import argparse
 from matplotlib import pyplot as plt
+import yaht.cache_management as CM
 from yaht.defaults import *
 from yaht.config_processing import read_config_file
 from yaht.processes import find_processes
@@ -38,6 +39,9 @@ def cli():
     )
     # Results parser to get previous results
     result_parser = subparsers.add_parser("results", help="Output latest results")
+    # Clear cache parser to clear the cache
+    result_parser = subparsers.add_parser("clear-cache", help="Clear the cache")
+    # TODO: Aggregate cache commands into a cache subcommand
 
     args = parser.parse_args()
     # Execute relevant commands
@@ -51,6 +55,8 @@ def cli():
     if args.command == "results":
         find_outputs()
         output_experiment_results()
+    if args.command == "clear-cache":
+        clear_cache()
 
 
 def gen_scaffold(config_file=DEFAULT_CONFIG_FILE, cache_dir=DEFAULT_CACHE_DIR):
@@ -118,6 +124,15 @@ def output_experiment_results(config_file=DEFAULT_CONFIG_FILE):
     # Get the results and pass them to output functions
     results = lab.get_results()
     output_results(results)
+
+
+def clear_cache(cache_dir=DEFAULT_CACHE_DIR):
+    """Clear all the files and directories in the cache, starting from scratch"""
+    for root, dirs, files in os.walk(cache_dir, topdown=False):
+        for name in files:
+            os.remove(os.path.join(root, name))
+        for name in dirs:
+            os.rmdir(os.path.join(root, name))
 
 
 if __name__ == "__main__":
