@@ -33,7 +33,11 @@ def default_output(value, metadata):
     # Draw a pretty box with the data
     print("┏" + "━" * overall_width + "┓")
     value_string = "{0:^%d}" % overall_width
-    print("┃" + value_string.format(value) + "┃")
+    try:
+        print("┃" + value_string.format(value) + "┃")
+    except:
+        # If the value doesn't format, just print it unformatted
+        print(value)
     print("┣" + "━" * overall_width + "┫")
     for k, v in metadata.items():
         metadata_string = "{0:>%d}: {1:<%d}" % (longest_k, longest_v)
