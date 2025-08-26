@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from yaht.defaults import *
 from yaht.config_processing import read_config_file
 from yaht.processes import find_processes
-from yaht.outputs import output_results
+from yaht.outputs import output_results, find_outputs
 from yaht.laboratory import Laboratory
 
 
@@ -46,8 +46,10 @@ def cli():
     if args.command == "add":
         add_file(args.path)
     if args.command == "run":
+        find_processes()
         run_experiments()
     if args.command == "results":
+        find_outputs()
         output_experiment_results()
 
 
