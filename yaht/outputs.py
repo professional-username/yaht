@@ -22,12 +22,23 @@ def get_output(output_name):
 
 def default_output(value, metadata):
     """Default output method; print the value, followed by a table of its metadata"""
-    print("┏" + "━" * 20)
-    print("┃" + "   %s" % value)
+    # Calculate the width of the box we're going to draw
+    longest_k = 0
+    longest_v = 0
     for k, v in metadata.items():
-        print("┃" + " %s:\t%s" % (k, v))
+        longest_k = max(longest_k, len(k))
+        longest_v = max(longest_v, len(v))
+    overall_width = longest_k + longest_v + 2
 
-    print("┗" + "━" * 20)
+    # Draw a pretty box with the data
+    print("┏" + "━" * overall_width + "┓")
+    value_string = "{0:^%d}" % overall_width
+    print("┃" + value_string.format(value) + "┃")
+    print("┣" + "━" * overall_width + "┫")
+    for k, v in metadata.items():
+        metadata_string = "{0:>%d}: {1:<%d}" % (longest_k, longest_v)
+        print("┃" + metadata_string.format(k, v) + "┃")
+    print("┗" + "━" * overall_width + "┛")
 
 
 def find_outputs():

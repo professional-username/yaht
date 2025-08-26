@@ -103,13 +103,10 @@ def add_file(
 
 def run_experiments(config_file=DEFAULT_CONFIG_FILE, cache_dir=DEFAULT_CACHE_DIR):
     """Run all the experiments specified in the config file"""
-    print("Running experiments...")
     config = read_config_file(config_file)
-    print("Config read...")
     lab = Laboratory(config)
     # Run the experiments
     lab.run_experiments()
-    print("Experiments ran!!")
 
 
 def output_experiment_results(config_file=DEFAULT_CONFIG_FILE):
@@ -118,7 +115,6 @@ def output_experiment_results(config_file=DEFAULT_CONFIG_FILE):
     lab = Laboratory(config)
     # Get the results and pass them to output functions
     results = lab.get_results()
-    print(results)
     output_results(results)
 
 
