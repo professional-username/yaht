@@ -104,8 +104,9 @@ class Laboratory:
     def determine_unrun_processes(self):
         """Check which of the processes in the structure need to be run"""
         metadata = CM.load_cache_metadata(self.cache_dir)
+
         verify_hash = lambda r_hashes: min(
-            [r_h in metadata["hash"] for r_h in r_hashes]
+            [r_h in list(metadata["hash"]) for r_h in r_hashes]
         )  # We chack the result hashes of every process against existing data
         self.structure["has_run"] = self.structure["result_hashes"].apply(verify_hash)
 

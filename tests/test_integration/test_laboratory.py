@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import copy
 import time
 import shutil
 import pytest
@@ -151,8 +152,29 @@ def test_multi_trial_lab(mock_all_procs):
 #     config = create_mock_base_config(cache_dir, source_fname)
 
 
-# def test_only_run_needed_processes():
-#     pass
+def test_only_run_needed_processes(mock_config, mock_all_procs, mocker):
+    """Test that the lab doesn't run processes for which the results are already known"""
+    copied_config = copy.deepcopy(mock_config)
+    lab = Laboratory(copied_config)
+    lab.run_experiments()
+    results = lab.get_results()
+
+    # If we replace the processes with something else,
+    # nothing about the config has changed,
+    # so the lab should not run any of them again
+    def mock_new_process(proc_name):
+        return lambda x, y="": "%s_%s%s-NEW" % (x, proc_name, y)
+
+    mocker.patch("yaht.structure.get_process", mock_new_process)
+
+    # Re-creating the lab should not lead to the processes being re-run
+    lab = Laboratory(mock_config)
+    lab.run_experiments()
+    new_results = lab.get_results()
+
+    values = list(results["value"])
+    new_values = list(new_results["value"])
+    assert new_values == values
 
 
 def test_use_custom_output(mock_config, mock_all_procs):
