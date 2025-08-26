@@ -1,4 +1,4 @@
-from yaht.outputs import register_output, get_output
+from yaht.outputs import register_output, get_output, default_output
 
 
 def test_register_output():
@@ -15,4 +15,4 @@ def test_register_output():
 def test_default_output():
     """Test what happens when we retrieve 'None' as the output name"""
     out = get_output(None)
-    assert out == print
+    assert out == default_output

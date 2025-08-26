@@ -15,9 +15,19 @@ def get_output(output_name):
     """Function to return a output by name"""
     # Handle "default" outputs
     if output_name == None:
-        return print
+        return default_output
 
     return OUTPUTS[output_name]
+
+
+def default_output(value, metadata):
+    """Default output method; print the value, followed by a table of its metadata"""
+    print("┏" + "━" * 20)
+    print("┃" + "   %s" % value)
+    for k, v in metadata.items():
+        print("┃" + " %s:\t%s" % (k, v))
+
+    print("┗" + "━" * 20)
 
 
 def find_outputs():
