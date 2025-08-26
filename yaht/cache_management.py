@@ -199,7 +199,11 @@ def update_cache_filenames(cache_dir):
     for fname_from, fname_to in zip(filenames_from, filenames_to):
         fname_from = os.path.join(cache_dir, fname_from)
         fname_to = os.path.join(cache_dir, fname_to)
-        os.rename(fname_from, fname_to)
+        # Hacky fix for file being the wrong name
+        try:
+            os.rename(fname_from, fname_to)
+        except:
+            continue
 
     # Save the new filenames
     metadata["filename"] = expected_filenames
