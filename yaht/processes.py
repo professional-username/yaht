@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import sys
 import importlib.util
 
 
@@ -17,18 +18,38 @@ def get_process(proc_name):
     return PROCESSES[proc_name]
 
 
+# def find_processes():
+#     """Import files in current directory to find processes"""
+#     for dirpath, dirnames, filenames in os.walk("."):
+#         for filename in [f for f in filenames if f.endswith(".py")]:
+#             # Construct the module name from the file path
+#             module_name = os.path.splitext(filename)[0]
+#             # Construct the full path to the .py file
+#             file_path = os.path.join(dirpath, filename)
+#             # Import the module
+#             spec = importlib.util.spec_from_file_location(module_name, file_path)
+#             module = importlib.util.module_from_spec(spec)
+#             spec.loader.exec_module(module)
+
+
 def find_processes():
-    """Import files in current directory to find processes"""
-    for dirpath, dirnames, filenames in os.walk("."):
+    cwd = os.getcwd()
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+
+    for dirpath, _, filenames in os.walk("."):
         for filename in [f for f in filenames if f.endswith(".py")]:
-            # Construct the module name from the file path
-            module_name = os.path.splitext(filename)[0]
-            # Construct the full path to the .py file
             file_path = os.path.join(dirpath, filename)
-            # Import the module
+            module_name = os.path.splitext(os.path.relpath(file_path, cwd))[0].replace(
+                os.sep, "."
+            )
+
             spec = importlib.util.spec_from_file_location(module_name, file_path)
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            try:
+                spec.loader.exec_module(module)
+            except ModuleNotFoundError as e:
+                print(f"Error importing {file_path}: {e}")
 
 
 # Collection of example processes
